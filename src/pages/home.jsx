@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import "./Home.css";
+import "./home.css";
 import ModalLead from "../components/ModalLead";
 import FiltroSidebar from "../components/FiltroSidebar";
 import ModalUsuario from "../components/ModalUsuario";
