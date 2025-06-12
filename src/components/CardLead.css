@@ -1,0 +1,195 @@
+.card {
+    background-color: #fff;
+    width: 88%;
+    border: 1px solid rgb(255, 252, 252);
+    border-radius: 8px;
+    box-shadow: 4px 4px 8px rgba(0, 0, 0, 0.3), -4px -4px 8px rgba(255, 255, 255, 0.5);
+    padding: 16px;
+    font-family: Arial, sans-serif;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    margin-top: -10px;
+    line-height: 2.3;
+    padding-bottom: 3px;
+    position: relative;
+    transition: none;
+  }
+  
+  .card-title {
+    font-size: 14px;
+    font-weight: bold;
+    display: flex;
+    justify-content:space-between;
+    margin-top: -06px;
+    line-height: 1.0;
+    margin-inline: 5px;
+  }
+  
+  .card.dragging {
+    /* Desativa os efeitos */
+    transform: none;
+    box-shadow: none;
+    transition: none;
+  }
+  
+  
+  .section {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    line-height: 1.3;
+  }
+  
+  .icon {
+    margin-right: 8px;
+    font-size: 18px;
+  }
+  
+  .text {
+    font-size: 14;
+    flex-grow: 1;
+  }
+  
+  .label {
+    padding: 2px 4px;
+    border-radius: 12px;
+    font-size: 8px;
+    color: #fff;
+    font-weight: bold;
+  }
+  
+  .label-frio {
+    background-color: #1e90ff; /* Azul */
+  }
+  
+  .label-novo {
+    background-color: red;
+  }
+  
+  .footer {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #666;
+    margin-inline: 5px;
+  }
+  
+  .dotted-rectangle {
+    border: 2px dotted #cbc3c3; /* Estilo pontilhado */
+    border-radius: 8px;
+    height: 30px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    margin-top: 5px;
+  }
+  
+  .field {
+    align-items: center;
+    display: flex;
+    width: 100%;
+    font-size: 8px;
+    color: #333;
+  }
+  
+  .field-label {
+    font-weight: bold;
+    
+  }
+  
+  .input-field {
+    display: inline-block;
+    vertical-align: top;
+  }
+  
+  .temperatura-badge {
+    border-radius: 12px;
+    font-size: 8px;
+    font-weight: bold;
+    padding: 2px 6px;
+    color: white;
+    cursor: pointer;
+    appearance: none;
+    text-transform: uppercase;
+    width: 47px;
+    text-align: center;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    
+  }
+  
+  .temperatura-badge.label-frio {
+    background-color: #1e90ff;
+  }
+  
+  .temperatura-badge.label-morno {
+    background-color: #eaec41;
+  }
+  
+  .temperatura-badge.label-quente {
+    background-color: #59e42f;
+  }
+  
+  .vendedor-select {
+    border: 1px solid #ccc;
+    border-radius: 12px;
+    font-size: 8px;
+    padding: 2px 6px;
+    color: #333;
+    background-color: #fff;
+    cursor: pointer;
+    outline: none;
+  }
+
+  .card-lead.sem-efeito {
+    transform: none !important;
+    transition: none !important;
+    box-shadow: none !important;
+  }
+  .card {
+    cursor: default; /* Remove o efeito de mãozinha */
+  }
+
+  .card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  
+  .card-time {
+    display: flex;
+    align-items: center;
+    font-size: 14px;
+    color: #888;
+  }
+
+  .section {
+    display: flex;
+    align-items: center;
+    gap: 6px; /* Espaço entre ícone e texto */
+  }
+  
+  .section .icon {
+    font-size: 1.2em;
+    margin-right: 4px;
+  }
+  
+  .section .text {
+    font-weight: bold;
+    font-size: 1em;
+    word-break: break-word;
+    /* Limita largura, impede ocupar toda a linha: */
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    text-align: left;
+  }
+  
+  
+  
+  

@@ -1,0 +1,70 @@
+/* Cabeçalho azul com texto branco */
+.crmHeader {
+  background-color: #2f5ca8; /* azul estilo Conversa */
+  padding: 0;
+  border-radius: 6px;
+  color: white;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  text-align: center;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #2f5ca8;
+    margin-top: 23px;
+  
+}
+
+.mainContainer {
+  width: 80%;
+  margin: 0 auto 0 80px; /* ⬅️ Centraliza tudo */
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+
+.tituloHeader {
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  padding: 0;
+  
+}
+
+/* Container branco com sombra */
+.actionContainer {
+  background: white;
+  padding: 16px;
+  margin-bottom: 1rem;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.08);
+  display: flex;
+  justify-content: flex-start;
+}
+
+/* Estilo do botão */
+.actionContainer button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  font-size: 14px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  
+}
+
+.actionContainer button:hover {
+  background-color: #0056b3;
+}
+.usuarioCardsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-start;
+  gap: 24px; /* << espaçamento entre os cards */
+  width: 80%;
+  
+}
+

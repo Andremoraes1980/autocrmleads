@@ -1,0 +1,50 @@
+.user-avatar {
+    width: 25px;
+    height: 25px;
+    background-color: white;
+    color: rgb(67, 92, 173);
+    font-weight: bold;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    user-select: none;
+    font-size: 11px;
+  }
+  
+  .user-dropdown {
+    position: absolute;
+    right: 0;
+    top: 50px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    padding: 10px;
+    width: 200px;
+    z-index: 1000;
+  }
+  
+  .user-dropdown button {
+    width: 80%;
+    padding: 6px 10px;
+    margin-top: 4px;
+    border: none;
+    background: #1976d2;
+    color: white;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 10px;
+  }
+  
+  .user-dropdown button:hover {
+    background: #115293;
+  }
+  
+  .user-dropdown div {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: #333;
+  }
+  
