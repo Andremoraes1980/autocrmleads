@@ -19,12 +19,7 @@ export default function MlAuth() {
       const stateObj = JSON.parse(atob(state));
 
       // 2) Valida nonce (CSRF protection)
-      // valida CSRF lendo do localStorage
-const original = JSON.parse(localStorage.getItem("ml_oauth_state") || "{}");
-
-// (Opcional) remova o state depois de usar:
-// localStorage.removeItem("ml_oauth_state");
-
+      const original = JSON.parse(sessionStorage.getItem("ml_oauth_state") || "{}");
       if (original.nonce !== stateObj.nonce) {
         console.error("State mismatch – possível ataque CSRF");
         return;

@@ -6,8 +6,18 @@ require('dotenv').config();
 
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: ["https://autocrmleads.vercel.app", "https://www.autocrmleads.com.br"],
+  methods: ["GET", "POST", "PUT", "DELETE"],
+  credentials: true
+}));
+console.log("✅ CORS configurado para Vercel e domínio personalizado");
 app.use(express.json());
+app.get('/ping', (req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+console.log("🔎 Rota GET /ping pronta para teste externo");
+
 
 // Troca code por access_token
 app.post('/api/ml-auth', async (req, res) => {
