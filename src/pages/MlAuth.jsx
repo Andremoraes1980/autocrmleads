@@ -30,24 +30,22 @@ export default function MlAuth() {
       console.log("✅ revenda_id from state:", revenda_id);
 
       // 4) Troca code → token via seu backend
-      const { data: tokenData, status } = await axios.post(
-        "/api/ml-auth",
-        { code },
-        { baseURL: import.meta.env.VITE_API_URL }
-      );
+      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/ml-auth`, { code });
+
+const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+console.log("Conectado ao Mercado Livre!");
+
       console.log("🔄 POST /api/ml-auth status:", status);
       console.log("🔑 tokenData:", tokenData);
 
       // 5) Insere no Supabase usando revenda_id do state
       const insertRow = {
-        usuario_id:    revenda_id,       // ou outro campo que represente o usuário
-        revenda_id,
-        access_token:  tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        user_id_ml:    tokenData.user_id,
-        expires_in:    tokenData.expires_in,
-        token_type:    tokenData.token_type,
-        scope:         tokenData.scope,
+        code,
+        token: res.data.access_token,
+        refresh_token: res.data.refresh_token,
+        vencimento: res.data.expires_in,
+        usuario_id: usuarioLocal?.id,
+        criado_em: new Date().toISOString()
       };
       console.log("🚩 Dados para supabase.insert:", insertRow);
 
