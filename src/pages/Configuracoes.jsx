@@ -63,14 +63,15 @@ localStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
 
   const state = btoa(JSON.stringify(stateObj));
 
-  const clientId    = "3512106896681315";
-  const redirectUri = import.meta.env.VITE_ML_REDIRECT_URI; // defina no .env
-  const params = new URLSearchParams({
-    response_type: "code",
-    client_id:     clientId,
-    redirect_uri:  redirectUri,
-    state,
-  });
+  const clientId    = import.meta.env.VITE_ML_CLIENT_ID;
+const redirectUri = import.meta.env.VITE_ML_REDIRECT_URI;
+
+const params = new URLSearchParams({
+  response_type: "code",
+  client_id: clientId,
+  redirect_uri: redirectUri
+});
+
 
   const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
   window.open(url, "_blank", "width=600,height=800");

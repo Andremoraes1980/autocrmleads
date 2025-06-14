@@ -35,8 +35,7 @@ export default function MlAuth() {
 const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
 console.log("Conectado ao Mercado Livre!");
 
-      console.log("🔄 POST /api/ml-auth status:", status);
-      console.log("🔑 tokenData:", tokenData);
+      
 
       // 5) Insere no Supabase usando revenda_id do state
       const insertRow = {
@@ -45,8 +44,10 @@ console.log("Conectado ao Mercado Livre!");
         refresh_token: res.data.refresh_token,
         vencimento: res.data.expires_in,
         usuario_id: usuarioLocal?.id,
+        revenda_id: revenda_id,
         criado_em: new Date().toISOString()
       };
+      
       console.log("🚩 Dados para supabase.insert:", insertRow);
 
       const { data, error } = await supabase
