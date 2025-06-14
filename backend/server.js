@@ -53,6 +53,10 @@ redirect_uri:  process.env.ML_REDIRECT_URI,
 // Inicia servidor backend na porta 5000
 // Usa PORT de variáveis de ambiente ou 5000 como padrão
 const PORT = process.env.PORT || 5000;
+
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
 app.listen(PORT, () => {
   console.log(`🚀 Backend rodando em http://localhost:${PORT}`);
 });
