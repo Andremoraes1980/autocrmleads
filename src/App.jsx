@@ -37,6 +37,7 @@ function App() {
             </ProtectedRoute>
           }
         />
+        
         <Route
           path="/cadastro-usuario"
           element={
