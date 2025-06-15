@@ -4,11 +4,14 @@ import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import { log, warn, error } from "../utils/Logger";
 import { toast } from 'react-toastify';
+import { useNavigate } from "react-router-dom";
+
 
 
 
 export default function MlAuth() {
 const [status, setStatus] = useState("loading"); // <-- ADICIONE AQUI
+const navigate = useNavigate();
   useEffect(() => {
     console.log("window.location.search:", window.location.search);
 console.log("ml_oauth_state no localStorage:", localStorage.getItem("ml_oauth_state"));
@@ -123,7 +126,7 @@ const { data, error } = await supabase
   
   if (status === "success") {
     setTimeout(() => {
-      window.location.href = "/configuracoes"; // Ou a página que preferir!
+      navigate("/configuracoes");
     }, 1800);
   
     return (
@@ -134,6 +137,7 @@ const { data, error } = await supabase
       </div>
     );
   }
+  
   
   if (status === "error") {
     return (
