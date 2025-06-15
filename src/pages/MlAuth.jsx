@@ -81,7 +81,6 @@ console.log("Conectado ao Mercado Livre!");
 
       // 5) Insere no Supabase usando revenda_id do state
       const insertRow = {
-        code,
         token: tokenData.access_token,
         refresh_token: tokenData.refresh_token,
         vencimento: tokenData.expires_in,
