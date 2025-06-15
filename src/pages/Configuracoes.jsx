@@ -76,7 +76,7 @@ const params = new URLSearchParams({
 
 
   const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
-  window.open(url, "_blank", "width=600,height=800");
+  window.location.href = url;
 };
 
 
