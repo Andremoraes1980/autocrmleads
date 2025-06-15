@@ -2,6 +2,10 @@
 import { useEffect } from "react";
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
+import { log, warn, error } from "../utils/Logger";
+import { toast } from 'react-toastify';
+
+
 
 export default function MlAuth() {
   useEffect(() => {
@@ -30,9 +34,27 @@ export default function MlAuth() {
       console.log("✅ revenda_id from state:", revenda_id);
 
       // 4) Troca code → token via seu backend
-      const res = await axios.post(`${import.meta.env.VITE_API_URL}/api/ml-auth`, { code });
+      let tokenData;
+
+try {
+  const res = await axios.post(
+    "/api/ml-auth",
+    { code },
+    {
+      baseURL: import.meta.env.VITE_API_URL,
+    }
+  );
+  tokenData = res.data;
+  log("POST /api/ml-auth status", res.status);
+  log("tokenData", tokenData);
+} catch (err) {
+  error("Erro ao chamar /api/ml-auth", err?.response?.data || err.message);
+  toast.error("Erro ao conectar com o Mercado Livre");
+  return;
+}
 
 const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+
 console.log("Conectado ao Mercado Livre!");
 
       
@@ -40,23 +62,29 @@ console.log("Conectado ao Mercado Livre!");
       // 5) Insere no Supabase usando revenda_id do state
       const insertRow = {
         code,
-        token: res.data.access_token,
-        refresh_token: res.data.refresh_token,
-        vencimento: res.data.expires_in,
+        token: tokenData.access_token,
+        refresh_token: tokenData.refresh_token,
+        vencimento: tokenData.expires_in,
         usuario_id: usuarioLocal?.id,
         revenda_id: revenda_id,
         criado_em: new Date().toISOString()
       };
       
       console.log("🚩 Dados para supabase.insert:", insertRow);
-
+      
       const { data, error } = await supabase
         .from("integracoes_ml")
         .insert([insertRow]);
-
+      
       console.log("🎯 supabase.insert resposta →", { data, error });
-      if (error) alert("Erro ao salvar integração: " + error.message);
-      else      alert("Integração salva com sucesso!");
+      
+      if (error) {
+        console.error("❌ Erro ao salvar integração:", error);
+        alert("Erro ao salvar integração: " + error.message);
+      } else {
+        toast.success("Integração Mercado Livre salva com sucesso!");
+      }
+      
     })();
   }, []);
 

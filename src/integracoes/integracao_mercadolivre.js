@@ -1,5 +1,9 @@
 import { supabase } from "../lib/supabaseClient";
 import axios from "axios";
+import { log, error } from "../utils/Logger";
+import { toast } from "react-toastify";
+
+
 
 /**
  * Importa os leads do Mercado Livre para a tabela 'leads'
@@ -19,24 +23,24 @@ export async function importarLeadsML(revenda_id) {
   }
 
   const { access_token, user_id_ml } = integracaoML;
-  console.log("🔑 Token:", access_token);
-  console.log("👤 Seller ID ML:", user_id_ml);
+  log("Token ML", access_token);
+  log("Seller ID", user_id_ml);
 
   // 2) Chamar o endpoint de leads para este seller
   let mlData = [];
   try {
     // Exemplo de URL: /classifieds/leads?seller_id=<sellerId>
     const url = `https://api.mercadolibre.com/classifieds/leads?seller_id=${user_id_ml}`;
-    console.log("➡️ GET", url);
+    log("➡️ GET Mercado Livre", url);
     const res = await axios.get(url, {
       headers: { Authorization: `Bearer ${access_token}` },
     });
     console.log("⬅️ Status", res.status);
-    console.log("📦 Dados brutos:", res.data);
+    log("📦 Dados brutos ML", res.data);
     // Normalmente vem em res.data.results
     mlData = res.data.results || [];
   } catch (e) {
-    console.error("❌ Erro ao buscar leads ML:", e.response?.data || e.message);
+    toast.error("Erro ao buscar leads do Mercado Livre");
     return;
   }
 

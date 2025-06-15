@@ -36,18 +36,21 @@ app.post('/api/ml-auth', async (req, res) => {
         grant_type: 'authorization_code',
         client_id: process.env.ML_CLIENT_ID,
         client_secret: process.env.ML_CLIENT_SECRET,
-        code: code,
+        code,
         redirect_uri: process.env.ML_REDIRECT_URI,
       }),
-      { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } }
+      {
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        },
+      }
     );
-
-    console.log("✅ Token recebido:", result.data);
-    res.json(result.data);
+    console.log("✅ Token recebido do ML:", result.data);
   } catch (err) {
-    console.error("❌ Erro ao trocar code por token:", err.response?.data || err.message);
-    res.status(500).json({ error: err.response?.data || err.message });
+    console.error("❌ Erro ao trocar code por token:", err?.response?.data || err.message);
+    return res.status(500).json({ message: "Erro ao autenticar com Mercado Livre." });
   }
+  
 });
 
 // Inicializa servidor
