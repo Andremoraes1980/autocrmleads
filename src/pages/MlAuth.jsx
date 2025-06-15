@@ -80,21 +80,25 @@ console.log("Conectado ao Mercado Livre!");
       
 
       // 5) Insere no Supabase usando revenda_id do state
-      const insertRow = {
-        token: tokenData.access_token,
-        refresh_token: tokenData.refresh_token,
-        vencimento: tokenData.expires_in,
-        usuario_id: usuarioLocal?.id,
-        revenda_id: revenda_id,
-        criado_em: new Date().toISOString()
-      };
-      
-      console.log("🚩 Dados para supabase.insert:", insertRow);
-      
-      const { data, error } = await supabase
-        .from("integracoes_ml")
-        .insert([insertRow]);
-      
+const insertRow = {
+  usuario_id: usuarioLocal?.id,                  // OK
+  access_token: tokenData.access_token,           // nome correto na tabela!
+  refresh_token: tokenData.refresh_token,         // OK
+  user_id_ml: tokenData.user_id,                  // user_id do ML
+  expires_in: tokenData.expires_in,               // OK
+  token_type: tokenData.token_type,               // OK
+  scope: tokenData.scope,                         // OK
+  revenda_id: revenda_id                          // OK
+  // criado_em: NÃO precisa, é automático
+  // atualizado_em: NÃO precisa, é automático
+};
+
+console.log("🚩 Dados para supabase.insert:", insertRow);
+
+const { data, error } = await supabase
+  .from("integracoes_ml")
+  .insert([insertRow]);
+     
       console.log("🎯 supabase.insert resposta →", { data, error });
       
       if (error) {
