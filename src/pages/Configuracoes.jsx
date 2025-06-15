@@ -61,17 +61,9 @@ const handleConectarMercadoLivre = () => {
   };
   // gera e salva o state em localStorage (compartilhado entre janelas)
   localStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
-  console.log("🌐 Antes do redirect:");
-console.log("→ localStorage['ml_oauth_state']:", localStorage.getItem("ml_oauth_state"));
-console.log("→ state codificado:", state);
-console.log("→ URL final:", url);
+const state = btoa(JSON.stringify(stateObj));
 
-
-
-
-  const state = btoa(JSON.stringify(stateObj));
-
-  const clientId    = import.meta.env.VITE_ML_CLIENT_ID;
+const clientId    = import.meta.env.VITE_ML_CLIENT_ID;
 const redirectUri = import.meta.env.VITE_ML_REDIRECT_URI;
 
 const params = new URLSearchParams({
@@ -81,11 +73,14 @@ const params = new URLSearchParams({
   state: state
 });
 
+const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
 
+console.log("🌐 Antes do redirect:");
+console.log("→ localStorage['ml_oauth_state']:", localStorage.getItem("ml_oauth_state"));
+console.log("→ state codificado:", state);
+console.log("→ URL final:", url);
 
-  const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
-  window.location.href = url;
-};
+window.location.href = url;};
 
 
 
