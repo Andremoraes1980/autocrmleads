@@ -47,6 +47,7 @@ const salvarRevenda = async (e) => {
 };
 
 const handleConectarMercadoLivre = () => {
+  console.log("🔥 Cliquei no botão Mercado Livre");
   const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
   if (!usuario.revenda_id) {
     alert("Faça login primeiro.");
