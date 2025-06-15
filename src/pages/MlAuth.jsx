@@ -106,11 +106,17 @@ const { data, error } = await supabase
         alert("Erro ao salvar integração: " + error.message);
       } else {
         toast.success("Integração Mercado Livre salva com sucesso!");
+        console.log("✅ Integração salva com sucesso!", data);
+
       }
       
     })();
   }, []);
 
 
-  return <div>Conectando ao Mercado Livre…</div>;
+  if (status === "loading") {
+    return <div>Conectando ao Mercado Livre…</div>;
+  }
+  // ...restante do fluxo de status
+  
 }
