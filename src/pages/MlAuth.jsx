@@ -1,5 +1,5 @@
 // src/pages/MlAuth.jsx
-import { useEffect } from "react";
+import { useState, useEffect } from "react"; // Já tem, mas reforce para garantir!
 import axios from "axios";
 import { supabase } from "../lib/supabaseClient";
 import { log, warn, error } from "../utils/Logger";
@@ -8,6 +8,7 @@ import { toast } from 'react-toastify';
 
 
 export default function MlAuth() {
+const [status, setStatus] = useState("loading"); // <-- ADICIONE AQUI
   useEffect(() => {
     console.log("window.location.search:", window.location.search);
 console.log("ml_oauth_state no localStorage:", localStorage.getItem("ml_oauth_state"));
@@ -103,12 +104,14 @@ const { data, error } = await supabase
       
       if (error) {
         console.error("❌ Erro ao salvar integração:", error);
-        alert("Erro ao salvar integração: " + error.message);
+        setStatus("error");
+        toast.error("Erro ao salvar integração: " + error.message);
       } else {
         toast.success("Integração Mercado Livre salva com sucesso!");
         console.log("✅ Integração salva com sucesso!", data);
-
+        setStatus("success");
       }
+      
       
     })();
   }, []);
@@ -117,6 +120,35 @@ const { data, error } = await supabase
   if (status === "loading") {
     return <div>Conectando ao Mercado Livre…</div>;
   }
+  
+  if (status === "success") {
+    setTimeout(() => {
+      window.location.href = "/configuracoes"; // Ou a página que preferir!
+    }, 1800);
+  
+    return (
+      <div style={{ textAlign: "center", marginTop: 40 }}>
+        <div style={{ fontSize: 40, color: "green" }}>✔️</div>
+        <h2>Integração Mercado Livre concluída com sucesso!</h2>
+        <div>Redirecionando…</div>
+      </div>
+    );
+  }
+  
+  if (status === "error") {
+    return (
+      <div style={{ textAlign: "center", marginTop: 40, color: "red" }}>
+        <div style={{ fontSize: 40 }}>❌</div>
+        <h2>Erro ao salvar integração.</h2>
+        <button onClick={() => window.location.href = "/configuracoes"}>
+          Voltar para configurações
+        </button>
+      </div>
+    );
+  }
+  
+  return null; // fallback de segurança
+  
   // ...restante do fluxo de status
   
 }
