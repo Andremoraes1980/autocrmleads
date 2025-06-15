@@ -69,8 +69,10 @@ const redirectUri = import.meta.env.VITE_ML_REDIRECT_URI;
 const params = new URLSearchParams({
   response_type: "code",
   client_id: clientId,
-  redirect_uri: redirectUri
+  redirect_uri: redirectUri,
+  state: state
 });
+
 
 
   const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
