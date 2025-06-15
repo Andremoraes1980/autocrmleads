@@ -23,7 +23,8 @@ export default function MlAuth() {
       const stateObj = JSON.parse(atob(state));
 
       // 2) Valida nonce (CSRF protection)
-      const original = JSON.parse(sessionStorage.getItem("ml_oauth_state") || "{}");
+      const original = JSON.parse(localStorage.getItem("ml_oauth_state") || "{}");
+
 
       console.log("🔍 state retornado (decodificado):", stateObj);
 console.log("🔍 state original:", original);
@@ -34,6 +35,8 @@ console.log("🔍 state original:", original);
         console.error("State mismatch – possível ataque CSRF");
         return;
       }
+      localStorage.removeItem("ml_oauth_state"); // 👈 ADICIONE AQUI
+
 
       // 3) Extrai revenda_id do state
       const revenda_id = stateObj.revenda_id;
