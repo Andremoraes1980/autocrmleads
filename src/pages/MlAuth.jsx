@@ -23,7 +23,8 @@ export default function MlAuth() {
       const stateObj = JSON.parse(atob(state));
 
       // 2) Valida nonce (CSRF protection)
-      const original = JSON.parse(localStorage.getItem("ml_oauth_state") || "{}");
+      const original = JSON.parse(sessionStorage.getItem("ml_oauth_state") || "{}");
+
       console.log("🔍 state retornado (decodificado):", stateObj);
 console.log("🔍 state original:", original);
 

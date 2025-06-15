@@ -59,7 +59,8 @@ const handleConectarMercadoLivre = () => {
     nonce:      generateNonce(),
   };
   // gera e salva o state em localStorage (compartilhado entre janelas)
-localStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
+  sessionStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
+
 
   const state = btoa(JSON.stringify(stateObj));
 
