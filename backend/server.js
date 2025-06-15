@@ -9,11 +9,22 @@ const app = express();
 
 // Habilita CORS apenas para seus domínios de produção
 app.use(cors({
-  origin: ["https://autocrmleads.vercel.app", "https://www.autocrmleads.com.br"],
+  origin: [
+    "https://autocrmleads.vercel.app",
+    "https://autocrmleads.com.br",
+    "https://www.autocrmleads.com.br",
+    "http://localhost:5173" // remove depois se não for usar local
+  ],
   methods: ["GET", "POST", "PUT", "DELETE"],
   credentials: true
 }));
-console.log("✅ CORS configurado para Vercel e domínio personalizado");
+console.log("✅ CORS configurado para Vercel, domínio com e sem www e local dev");
+
+app.use((req, res, next) => {
+  console.log("🌎 Origem da requisição:", req.headers.origin);
+  next();
+});
+
 
 app.use(express.json());
 
@@ -46,6 +57,8 @@ app.post('/api/ml-auth', async (req, res) => {
       }
     );
     console.log("✅ Token recebido do ML:", result.data);
+return res.json(result.data);
+
   } catch (err) {
     console.error("❌ Erro ao trocar code por token:", err?.response?.data || err.message);
     return res.status(500).json({ message: "Erro ao autenticar com Mercado Livre." });
