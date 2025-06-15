@@ -60,6 +60,11 @@ const handleConectarMercadoLivre = () => {
   };
   // gera e salva o state em localStorage (compartilhado entre janelas)
   localStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
+  console.log("🌐 Antes do redirect:");
+console.log("→ localStorage['ml_oauth_state']:", localStorage.getItem("ml_oauth_state"));
+console.log("→ state codificado:", state);
+console.log("→ URL final:", url);
+
 
 
 

@@ -27,6 +27,12 @@ console.log("ml_oauth_state no localStorage:", localStorage.getItem("ml_oauth_st
 
       // 2) Valida nonce (CSRF protection)
       const original = JSON.parse(localStorage.getItem("ml_oauth_state") || "{}");
+      console.log("🔍 window.location.search:", window.location.search);
+console.log("🔍 localStorage['ml_oauth_state'] (callback):", localStorage.getItem("ml_oauth_state"));
+console.log("🔍 state retornado (query):", state);
+console.log("🔍 state decodificado:", stateObj);
+console.log("🔍 state original (localStorage):", original);
+
 
 
       console.log("🔍 state retornado (decodificado):", stateObj);
@@ -35,6 +41,8 @@ console.log("🔍 state original:", original);
 
 
       if (original.nonce !== stateObj.nonce) {
+        console.error("❌ State mismatch – possível ataque CSRF");
+  console.log("🚨 Nonce salvo:", original.nonce, "Nonce retornado:", stateObj.nonce);
         console.error("State mismatch – possível ataque CSRF");
         return;
       }
