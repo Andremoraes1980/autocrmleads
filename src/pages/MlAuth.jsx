@@ -24,8 +24,9 @@ export default function MlAuth() {
 
       // 2) Valida nonce (CSRF protection)
       const original = JSON.parse(localStorage.getItem("ml_oauth_state") || "{}");
-      console.log("🔍 state retornado:", state);
+      console.log("🔍 state retornado (decodificado):", stateObj);
 console.log("🔍 state original:", original);
+
 
 
       if (original.nonce !== stateObj.nonce) {
