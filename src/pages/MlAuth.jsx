@@ -9,6 +9,9 @@ import { toast } from 'react-toastify';
 
 export default function MlAuth() {
   useEffect(() => {
+    console.log("window.location.search:", window.location.search);
+console.log("ml_oauth_state no localStorage:", localStorage.getItem("ml_oauth_state"));
+
     (async () => {
       const params = new URLSearchParams(window.location.search);
       const code  = params.get("code");
