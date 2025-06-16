@@ -9,6 +9,8 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
   const [integracao, setIntegracao] = useState(null);
   const [loading, setLoading] = useState(true);
 
+
+
   // 1. Ao carregar, busca integração
   useEffect(() => {
     async function buscarIntegracao() {
@@ -51,10 +53,41 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
     );
   }
 
+  function handleConectar() {
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+    if (!usuario.revenda_id) {
+      toast.error("Faça login primeiro.");
+      return;
+    }
+  
+    const stateObj = {
+      revenda_id: usuario.revenda_id,
+      nonce: window.crypto.randomUUID(),
+    };
+    localStorage.setItem("ml_oauth_state", JSON.stringify(stateObj));
+    const state = btoa(JSON.stringify(stateObj));
+  
+    const clientId = import.meta.env.VITE_ML_CLIENT_ID;
+    const redirectUri = import.meta.env.VITE_ML_REDIRECT_URI;
+  
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      state,
+    });
+  
+    const url = `https://auth.mercadolivre.com.br/authorization?${params}`;
+    window.location.href = url;
+  }
+  
+
   // Se não tem integração ativa, mostra botão de conectar
   return (
-    <Button variant="default" onClick={() => window.location.href = "/api/ml-auth"}>
-      Conectar Mercado Livre
-    </Button>
+    // Novo:
+<Button variant="default" onClick={handleConectar}>
+  Conectar Mercado Livre
+</Button>
+
   );
 }
