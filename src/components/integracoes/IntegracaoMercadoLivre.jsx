@@ -8,9 +8,7 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
   const [integracao, setIntegracao] = useState(null);
   const [loading, setLoading] = useState(true);
 
-
-
-  // 1. Ao carregar, busca integração
+ // 1. Ao carregar, busca integração
   useEffect(() => {
     async function buscarIntegracao() {
       const { data, error } = await supabase
