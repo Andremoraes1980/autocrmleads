@@ -84,9 +84,21 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
   // Se não tem integração ativa, mostra botão de conectar
   return (
     // Novo:
-<Button variant="default" onClick={handleConectar}>
+<button
+  onClick={handleConectar}
+  style={{
+    padding: "8px 18px",
+    background: "#3483fa",
+    color: "#fff",
+    border: "none",
+    borderRadius: 6,
+    fontWeight: "bold",
+    fontSize: 16,
+    cursor: "pointer",
+  }}
+>
   Conectar Mercado Livre
-</Button>
+</button>
 
   );
 }
