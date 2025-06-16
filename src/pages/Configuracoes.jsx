@@ -173,9 +173,7 @@ const renderConteudo = () => {
           </div>
           
           {/* Mercado Livre */}
-          <div className={styles.cardIntegracao}>
-  <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
-</div>
+          <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
 
 
           {/* Autoline */}
