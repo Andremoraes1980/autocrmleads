@@ -1,7 +1,7 @@
 // src/components/integracoes/IntegracaoMercadoLivre.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Button } from "@/components/ui/button"; // ajuste se necessário
+import { Button } from "../components/ui/button"; // ou o caminho certo
 import { toast } from "react-toastify";
 import { LogOut, RefreshCw } from "lucide-react"; // opcional, para ícones
 
