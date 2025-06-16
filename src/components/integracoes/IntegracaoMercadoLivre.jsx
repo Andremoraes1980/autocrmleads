@@ -2,8 +2,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { toast } from "react-toastify";
-import styles from "./IntegracaoMercadoLivre.module.css";
-
 
 export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
   const [integracao, setIntegracao] = useState(null);
@@ -101,31 +99,33 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
           <span style={{ marginRight: 6 }}>🟢</span>
           Integração ativada
         </span>
-        <div style={{ fontSize: 13, color: "#3c4252" }}>
+        <div style={{ fontSize: 13, color: "#3c4252", marginBottom: 14 }}>
           Conta: <b>{integracao.user_id_ml || "ID não informado"}</b>
         </div>
         <button
           style={{
-            marginTop: 18,
+            marginTop: 4,
             padding: "10px 0",
             width: "100%",
-            background: "#ef4444",
+            background: "#22c55e",
             color: "#fff",
             border: "none",
             borderRadius: 7,
             fontWeight: "bold",
             fontSize: 16,
-            cursor: "pointer",
+            cursor: "default",
             letterSpacing: 1,
-            boxShadow: "0 2px 4px #ef444455",
+            boxShadow: "0 2px 4px #14a80033",
             transition: "background .2s",
+            opacity: 0.85,
           }}
-          onClick={handleDesconectar}
           disabled
         >
-          Desativar integração
+          ✅ Conectado
         </button>
-        <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>Desconectar em breve!</div>
+        <div style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>
+          Desconectar em breve!
+        </div>
       </div>
     );
   }
