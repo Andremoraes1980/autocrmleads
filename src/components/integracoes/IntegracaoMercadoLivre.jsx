@@ -2,6 +2,8 @@
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
 import { toast } from "react-toastify";
+import styles from "./IntegracaoMercadoLivre.module.css";
+
 
 export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
   const [integracao, setIntegracao] = useState(null);
