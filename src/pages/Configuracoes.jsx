@@ -173,14 +173,10 @@ const renderConteudo = () => {
           </div>
           
           {/* Mercado Livre */}
-<div className={styles.cardIntegracao}>
-  <img src="/mercadolivre.png" alt="Mercado Livre" style={{ width: 56 }} />
-  <div>Mercado Livre</div>
-  <IntegracaoMercadoLivre
-    usuarioId={usuarioLocal.id}
-    revendaId={usuarioLocal.revenda_id}
-  />
-</div>
+          <IntegracaoMercadoLivre
+  usuarioId={usuarioLocal.id}
+  revendaId={usuarioLocal.revenda_id}
+/>
 
           {/* Autoline */}
           <div className={styles.cardIntegracao}>
