@@ -3,12 +3,11 @@ import React, { useState } from "react";
 import Layout from "../components/Layout";
 import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
-
-
-
+import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 
 
 export default function Configuracoes() {
+  
   const [abaAtiva, setAbaAtiva] = useState("dados-revenda");
   const [nome, setNome] = useState("");
 const [endereco, setEndereco] = useState("");
@@ -16,6 +15,11 @@ const [telefone, setTelefone] = useState("");
 const [instagram, setInstagram] = useState("");
 const [site, setSite] = useState("");
 const [facebook, setFacebook] = useState("");
+const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+
+
+
+
 
 function formatarTelefone(valor) {
   valor = valor.replace(/\D/g, "");
@@ -27,6 +31,8 @@ function formatarTelefone(valor) {
 }
 
 const generateNonce = () => window.crypto.randomUUID();
+
+
 
 
 const salvarRevenda = async (e) => {
@@ -45,6 +51,8 @@ const salvarRevenda = async (e) => {
     alert("Dados salvos!");
   }
 };
+
+
 
 const handleConectarMercadoLivre = () => {
   console.log("🔥 Cliquei no botão Mercado Livre");
@@ -163,17 +171,17 @@ const renderConteudo = () => {
             <div>Webmotors</div>
             <button className={styles.botaoConectar} disabled>Conectar</button>
           </div>
+          
           {/* Mercado Livre */}
-          <div className={styles.cardIntegracao}>
-            <img src="/mercadolivre.png" alt="Mercado Livre" style={{ width: 56 }} />
-            <div>Mercado Livre</div>
-            <button
-              className={styles.botaoConectar}
-              onClick={handleConectarMercadoLivre}
-            >
-              Conectar
-            </button>
-          </div>
+<div className={styles.cardIntegracao}>
+  <img src="/mercadolivre.png" alt="Mercado Livre" style={{ width: 56 }} />
+  <div>Mercado Livre</div>
+  <IntegracaoMercadoLivre
+    usuarioId={usuarioLocal.id}
+    revendaId={usuarioLocal.revenda_id}
+  />
+</div>
+
           {/* Autoline */}
           <div className={styles.cardIntegracao}>
             <img src="/autoline.png" alt="Autoline" style={{ width: 56 }} />
