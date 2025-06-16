@@ -1,7 +1,6 @@
 // src/components/integracoes/IntegracaoMercadoLivre.jsx
 import { useEffect, useState } from "react";
 import { supabase } from "../../lib/supabaseClient";
-import { Button } from "../components/ui/button"; // ou o caminho certo
 import { toast } from "react-toastify";
 import { LogOut, RefreshCw } from "lucide-react"; // opcional, para ícones
 
@@ -42,12 +41,12 @@ export default function IntegracaoMercadoLivre({ usuarioId, revendaId }) {
         </div>
         <div style={{ marginTop: 10 }}>
           {/* Aqui pode colocar botões: */}
-          <Button variant="secondary" onClick={() => toast.info("Função desconectar futura!")}>
-            <LogOut size={16} style={{ marginRight: 6 }} /> Desconectar
-          </Button>
-          <Button variant="outline" style={{ marginLeft: 10 }} onClick={() => toast.info("Função renovar token futura!")}>
-            <RefreshCw size={16} style={{ marginRight: 6 }} /> Renovar Token
-          </Button>
+          <button style={{ marginRight: 10 }} onClick={() => toast.info("Função desconectar futura!")}>
+  Desconectar
+</button>
+<button onClick={() => toast.info("Função renovar token futura!")}>
+    Renovar Token
+  </button>
         </div>
       </div>
     );
