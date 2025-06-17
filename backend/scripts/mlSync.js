@@ -4,22 +4,19 @@ const axios = require("axios");
 const cron = require("node-cron");
 
 // Configuração Supabase
-const supabase = createClient('https://dpanpvimjgybiyjnuyzi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwYW5wdmltamd5Yml5am51eXppIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ2ODYxMzUsImV4cCI6MjA2MDI2MjEzNX0.r0YdAO3ZNiM1uzHIatTnAHwvaDbGV1EhIt8Vffo4-38');
+const supabase = createClient('https://dpanpvimjgybiyjnuyzi.supabase.co', 'SUA_SERVICE_ROLE_KEY_AQUI');
 
-// Função que importa leads igual ao seu frontend, mas rodando no backend!
-async function importarLeadsML(revenda_id) {
-  const { data: integracaoML, error: errML } = await supabase
-    .from("integracoes_ml")
-    .select("access_token,user_id_ml")
-    .eq("revenda_id", revenda_id)
-    .single();
+// Função que importa os leads de UMA integração
+async function importarLeadsML(integracaoML) {
+  const { revenda_id, access_token, user_id_ml } = integracaoML;
 
-  if (errML || !integracaoML) {
-    console.log("⚠️ Integração não encontrada. Saindo sem puxar leads.");
+  if (!access_token || !user_id_ml || !revenda_id) {
+    console.log("⚠️ Integração incompleta. Pulando.");
     return;
   }
 
-  const { access_token, user_id_ml } = integracaoML;
+  console.log("🔄 Importando para revenda_id:", revenda_id, "| user_id_ml:", user_id_ml);
+
   let mlData = [];
   try {
     const url = `https://api.mercadolibre.com/classifieds/leads?seller_id=${user_id_ml}`;
@@ -28,12 +25,12 @@ async function importarLeadsML(revenda_id) {
     });
     mlData = res.data.results || [];
   } catch (e) {
-    console.error("Erro ao buscar leads do Mercado Livre", e.message);
+    console.error("Erro ao buscar leads do Mercado Livre", e.response?.data || e.message);
     return;
   }
 
   if (!mlData.length) {
-    console.log("ℹ️ Nenhum lead novo encontrado.");
+    console.log("ℹ️ Nenhum lead novo encontrado para revenda:", revenda_id);
     return;
   }
 
@@ -46,6 +43,7 @@ async function importarLeadsML(revenda_id) {
     const id_externo = leadML.id?.toString() || "";
     const data_chegada = leadML.created_at || new Date().toISOString();
 
+    // 👇 SALVA O revenda_id JUNTO!
     const { error: upErr } = await supabase.from("leads").upsert(
       [
         {
@@ -58,6 +56,7 @@ async function importarLeadsML(revenda_id) {
           etapa: "Nova Proposta",
           vendedor_id: null,
           data_chegada,
+          revenda_id, // <-- aqui está o segredo!
         },
       ],
       { onConflict: ["id_externo", "origem"] }
@@ -68,23 +67,28 @@ async function importarLeadsML(revenda_id) {
     }
   }
 
-  console.log("✅ Leads importados com sucesso:", mlData.length);
+  console.log("✅ Leads importados com sucesso para revenda", revenda_id, ":", mlData.length);
 }
 
-// Função para sincronizar todas as revendas ativas
+// Função para sincronizar todas as integrações ativas
 async function syncTodasRevendas() {
-  const { data: revendas, error } = await supabase
+  const { data: integracoes, error } = await supabase
     .from("integracoes_ml")
-    .select("revenda_id")
-    .neq('access_token', null); // só revendas com integração
+    .select("revenda_id,access_token,user_id_ml")
+    .neq('access_token', null);
 
   if (error) {
-    console.error("Erro ao buscar revendas:", error);
+    console.error("Erro ao buscar integrações:", error);
     return;
   }
 
-  for (const r of revendas) {
-    await importarLeadsML(r.revenda_id);
+  if (!integracoes?.length) {
+    console.log("⚠️ Nenhuma integração ativa encontrada.");
+    return;
+  }
+
+  for (const integracao of integracoes) {
+    await importarLeadsML(integracao);
   }
 }
 
