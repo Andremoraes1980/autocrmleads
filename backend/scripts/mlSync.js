@@ -1,10 +1,11 @@
+console.log("🟢 mlSync.js iniciado!");
 // scripts/mlSync.js
 const { createClient } = require('@supabase/supabase-js');
 const axios = require("axios");
 const cron = require("node-cron");
 
 // Configuração Supabase
-const supabase = createClient('https://dpanpvimjgybiyjnuyzi.supabase.co', 'SUA_SERVICE_ROLE_KEY_AQUI');
+const supabase = createClient('https://dpanpvimjgybiyjnuyzi.supabase.co', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRwYW5wdmltamd5Yml5am51eXppIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0NDY4NjEzNSwiZXhwIjoyMDYwMjYyMTM1fQ.BNz557c9oAMIgcCfrCl4wYaq3KlNzDPtt8odh0b83C4');
 
 // Função que importa os leads de UMA integração
 async function importarLeadsML(integracaoML) {
@@ -98,6 +99,7 @@ async function syncTodasRevendas() {
   const { data: integracoes, error } = await supabase
     .from("integracoes_ml")
     .select("revenda_id,access_token,user_id_ml")
+    
     .neq('access_token', null);
 
   if (error) {
@@ -105,11 +107,14 @@ async function syncTodasRevendas() {
     return;
   }
 
-  if (!integracoes?.length) {
-    console.log("⚠️ Nenhuma integração ativa encontrada.");
-    return;
-  }
-  console.log("🔍 Integrações encontradas:", integracoes?.length, integracoes);
+  console.log("🟢 Dados brutos recebidos do Supabase:", integracoes);
+
+if (!integracoes || !integracoes.length) {
+  console.log("⚠️ Nenhuma integração retornada do Supabase.");
+  return;
+} else {
+  console.log("👍 Vai entrar no loop, total:", integracoes.length);
+}
 
   for (const integracao of integracoes) {
     await importarLeadsML(integracao);
