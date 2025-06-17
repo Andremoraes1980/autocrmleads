@@ -8,7 +8,13 @@ const supabase = createClient('https://dpanpvimjgybiyjnuyzi.supabase.co', 'SUA_S
 
 // Função que importa os leads de UMA integração
 async function importarLeadsML(integracaoML) {
+  // LOG para ver o objeto completo recebido!
+  console.log("🔍 importacao - Objeto recebido:", JSON.stringify(integracaoML, null, 2));
+
   const { revenda_id, access_token, user_id_ml } = integracaoML;
+
+  // LOG para ver valores individuais
+  console.log("🔎 Campos extraídos:", { revenda_id, access_token, user_id_ml });
 
   if (!access_token || !user_id_ml || !revenda_id) {
     console.log("⚠️ Integração incompleta. Pulando.");
