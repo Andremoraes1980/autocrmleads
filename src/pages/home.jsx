@@ -8,7 +8,7 @@ import CardLead from "../components/CardLead";
 import { closestCenter } from "@dnd-kit/core";
 import { calcularTempoDecorrido } from "../lib/utils";
 import { useNavigate } from "react-router-dom";
-import { importarLeadsML } from "../integracoes/integracao_mercadolivre";
+
 
 
 
@@ -214,11 +214,7 @@ setUsuarioAtual({
     verificarUsuario();
   }, []);
 
-  useEffect(() => {
-    if (usuarioAtual?.revenda_id) {
-      importarLeadsML(usuarioAtual.revenda_id);
-    }
-  }, [usuarioAtual]);
+  
   
   
 
