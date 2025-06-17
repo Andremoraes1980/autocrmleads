@@ -19,10 +19,22 @@ async function importarLeadsML(integracaoML) {
 
   let mlData = [];
   try {
+    console.log("➡️ Fazendo requisição para Mercado Livre:", {
+      seller_id: user_id_ml,
+      url: `https://api.mercadolibre.com/classifieds/leads?seller_id=${user_id_ml}`,
+      revenda_id,
+      tokenInicio: access_token.substring(0, 10) // só para debug, não expõe tudo
+    });
     const url = `https://api.mercadolibre.com/classifieds/leads?seller_id=${user_id_ml}`;
-    const res = await axios.get(url, {
+    const res = await axios.get(url, {            
       headers: { Authorization: `Bearer ${access_token}` },
     });
+    console.log("⬅️ Resposta Mercado Livre:", {
+      status: res.status,
+      total: res.data?.results?.length,
+      exemplo: res.data?.results?.[0] || "Nenhum lead"
+    });
+    
     mlData = res.data.results || [];
   } catch (e) {
     console.error("Erro ao buscar leads do Mercado Livre", e.response?.data || e.message);
@@ -44,7 +56,12 @@ async function importarLeadsML(integracaoML) {
     const data_chegada = leadML.created_at || new Date().toISOString();
 
     // 👇 SALVA O revenda_id JUNTO!
+    console.log("📝 Salvando lead:", {
+      id_externo, nome, veiculo, revenda_id
+    });
+    
     const { error: upErr } = await supabase.from("leads").upsert(
+      
       [
         {
           id_externo,
@@ -86,6 +103,7 @@ async function syncTodasRevendas() {
     console.log("⚠️ Nenhuma integração ativa encontrada.");
     return;
   }
+  console.log("🔍 Integrações encontradas:", integracoes?.length, integracoes);
 
   for (const integracao of integracoes) {
     await importarLeadsML(integracao);
