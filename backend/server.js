@@ -25,6 +25,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// server.js (ou arquivo de rotas)
+app.post('/api/ml-webhook', (req, res) => {
+  console.log("🔔 Webhook recebido do Mercado Livre:", req.body);
+  res.sendStatus(200);
+});
+
+
 
 app.use(express.json());
 
