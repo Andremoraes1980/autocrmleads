@@ -180,5 +180,13 @@
     background: #aaa;
     cursor: not-allowed;
   }
+
+  .modalOverlay {
+    position: fixed; z-index: 10; left: 0; top: 0; width: 100vw; height: 100vh;
+    background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center;
+  }
+  .modalContent {
+    background: #fff; border-radius: 10px; padding: 32px 24px; min-width: 320px; box-shadow: 0 6px 32px #0002;
+  }
   
   

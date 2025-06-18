@@ -41,8 +41,9 @@ async function importarLeadsML(integracaoML) {
       if (e.response?.status === 401 && integracaoML.refresh_token) {
         console.warn("🔁 Token expirado, tentando renovar via refresh_token...");
         // Troque pelos valores do seu app:
-        const client_id = "SEU_CLIENT_ID";
-        const client_secret = "SEU_CLIENT_SECRET";
+        const client_id = process.env.ML_CLIENT_ID;
+const client_secret = process.env.ML_CLIENT_SECRET;
+
         const novoToken = await renovarAccessToken(integracaoML.refresh_token, client_id, client_secret);
         if (novoToken && novoToken.access_token) {
           // Atualize os tokens no Supabase:

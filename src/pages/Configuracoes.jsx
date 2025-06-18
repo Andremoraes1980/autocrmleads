@@ -16,6 +16,8 @@ const [instagram, setInstagram] = useState("");
 const [site, setSite] = useState("");
 const [facebook, setFacebook] = useState("");
 const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+const [modalWebmotorsOpen, setModalWebmotorsOpen] = useState(false);
+const [webmotorsStatus, setWebmotorsStatus] = useState(""); // "aguardando", "conectado", "desconectado
 
 
 
@@ -51,6 +53,29 @@ const salvarRevenda = async (e) => {
     alert("Dados salvos!");
   }
 };
+
+// Função chamada quando o usuário clica "Já cadastrei"
+const handleJaCadastreiWebmotors = async () => {
+    // Atualiza status no Supabase (pode ser campo na tabela revenda)
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+    if (!usuario.revenda_id) {
+      alert("Faça login primeiro.");
+      return;
+    }
+    // Exemplo: atualiza campo 'webmotors_status'
+    const { error } = await supabase
+      .from("revenda")
+      .update({ webmotors_status: "aguardando" })
+      .eq("id", usuario.revenda_id);
+  
+    if (error) {
+      alert("Erro ao atualizar status no banco: " + error.message);
+    } else {
+      setWebmotorsStatus("aguardando");
+      setModalWebmotorsOpen(false);
+      alert("Status de integração atualizado! Assim que recebermos o primeiro lead, você verá o status como conectado.");
+    }
+  };
 
 
 
@@ -165,12 +190,55 @@ const renderConteudo = () => {
             <div>OLX</div>
             <button className={styles.botaoConectar} disabled>Conectar</button>
           </div>
+          
           {/* Webmotors */}
-          <div className={styles.cardIntegracao}>
-            <img src="/webmotors.png" alt="Webmotors" style={{ width: 56 }} />
-            <div>Webmotors</div>
-            <button className={styles.botaoConectar} disabled>Conectar</button>
-          </div>
+<div className={styles.cardIntegracao}>
+  <img src="/webmotors.png" alt="Webmotors" style={{ width: 56 }} />
+  <div>Webmotors</div>
+  {webmotorsStatus === "conectado" ? (
+    <span style={{ color: "green", fontWeight: "bold" }}>Conectado</span>
+  ) : webmotorsStatus === "aguardando" ? (
+    <span style={{ color: "#E67E22", fontWeight: "bold" }}>Aguardando Lead...</span>
+  ) : (
+    <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(true)}>
+      Conectar
+    </button>
+  )}
+
+  {/* Modal de instrução */}
+  {modalWebmotorsOpen && (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <h4>Integração Webmotors</h4>
+        <ol>
+          <li>Acesse o painel Webmotors da sua loja.</li>
+          <li>No campo <b>Callback URL Leads</b>, cole este endereço:<br />
+            <code style={{ background: "#f5f5f5", padding: "2px 6px" }}>
+              https://autocrm-backend.onrender.com/api/webmotors-leads
+            </code>
+            <button
+              style={{ marginLeft: 8, padding: "2px 10px", cursor: "pointer" }}
+              onClick={() =>
+                navigator.clipboard.writeText("https://autocrm-backend.onrender.com/api/webmotors-leads")
+              }
+            >Copiar</button>
+          </li>
+          <li>Salve e teste o envio de um lead de teste.</li>
+          <li>Depois, clique em <b>“Já cadastrei”</b> abaixo.</li>
+        </ol>
+        <div style={{ display: "flex", gap: 16 }}>
+          <button className={styles.botaoConectar} onClick={handleJaCadastreiWebmotors}>
+            Já cadastrei
+          </button>
+          <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(false)}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
           
           {/* Mercado Livre */}
           <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
