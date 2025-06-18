@@ -33,20 +33,49 @@ async function importarLeadsML(integracaoML) {
       tokenInicio: access_token.substring(0, 10) // só para debug, não expõe tudo
     });
     const url = `https://api.mercadolibre.com/classifieds/leads?seller_id=${user_id_ml}`;
-    const res = await axios.get(url, {            
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    let res;
+    try {
+      res = await axios.get(url, { headers: { Authorization: `Bearer ${access_token}` } });
+    } catch (e) {
+      // Se o erro for por token expirado, tenta renovar!
+      if (e.response?.status === 401 && integracaoML.refresh_token) {
+        console.warn("🔁 Token expirado, tentando renovar via refresh_token...");
+        // Troque pelos valores do seu app:
+        const client_id = "SEU_CLIENT_ID";
+        const client_secret = "SEU_CLIENT_SECRET";
+        const novoToken = await renovarAccessToken(integracaoML.refresh_token, client_id, client_secret);
+        if (novoToken && novoToken.access_token) {
+          // Atualize os tokens no Supabase:
+          await supabase
+            .from('integracoes_ml')
+            .update({
+              access_token: novoToken.access_token,
+              refresh_token: novoToken.refresh_token
+            })
+            .eq('revenda_id', revenda_id);
+
+          // Tente novamente com o novo access_token:
+          res = await axios.get(url, { headers: { Authorization: `Bearer ${novoToken.access_token}` } });
+        } else {
+          console.error("❌ Não foi possível renovar o access_token. Verifique os dados.");
+          return;
+        }
+      } else {
+        console.error("Erro ao buscar leads do Mercado Livre", e.response?.data || e.message);
+        return;
+      }
+    }
     console.log("⬅️ Resposta Mercado Livre:", {
       status: res.status,
       total: res.data?.results?.length,
       exemplo: res.data?.results?.[0] || "Nenhum lead"
     });
-    
     mlData = res.data.results || [];
   } catch (e) {
-    console.error("Erro ao buscar leads do Mercado Livre", e.response?.data || e.message);
+    console.error("Erro inesperado ao buscar leads do Mercado Livre", e.response?.data || e.message);
     return;
   }
+
 
   if (!mlData.length) {
     console.log("ℹ️ Nenhum lead novo encontrado para revenda:", revenda_id);
@@ -94,11 +123,34 @@ async function importarLeadsML(integracaoML) {
   console.log("✅ Leads importados com sucesso para revenda", revenda_id, ":", mlData.length);
 }
 
+// --- RENOVAÇÃO AUTOMÁTICA DE TOKEN ---
+async function renovarAccessToken(refresh_token, client_id, client_secret) {
+  try {
+    const url = "https://api.mercadolibre.com/oauth/token";
+    const res = await axios.post(url, {
+      grant_type: "refresh_token",
+      client_id,
+      client_secret,
+      refresh_token,
+    }, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+
+    console.log("✅ Novo token gerado pelo refresh_token!", res.data);
+    return res.data; // { access_token, refresh_token, expires_in, ... }
+  } catch (err) {
+    console.error("❌ Erro ao renovar access_token:", err.response?.data || err.message);
+    return null;
+  }
+}
+
+
 // Função para sincronizar todas as integrações ativas
 async function syncTodasRevendas() {
   const { data: integracoes, error } = await supabase
     .from("integracoes_ml")
-    .select("revenda_id,access_token,user_id_ml")
+    .select("revenda_id,access_token,refresh_token,user_id_ml")
+
     
     .neq('access_token', null);
 
