@@ -4,19 +4,6 @@ const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
-// Dados do seu e-mail
-const config = {
-  imap: {
-    user: 'leads.alexcarprime@gmail.com',
-    password: 'nzfx bmhu bdds uvkj',
-    host: 'imap.gmail.com',
-    port: 993,
-    tls: true,
-    authTimeout: 10000,
-    tlsOptions: { rejectUnauthorized: false }
-  }
-};
-
 function limparTexto(texto) {
   return texto
     .replace(/\[.*?\]\(.*?\)/g, "")   // remove markdown [img](url)
@@ -54,9 +41,20 @@ function extrairCamposOLX(texto) {
   };
 }
 
-async function lerEmails() {
+// Função que lê e processa e-mails de UMA revenda
+async function lerEmailsDaRevenda(revenda) {
+  const imapConfig = {
+    user: revenda.user_leads,
+    password: revenda.imap_password,
+    host: process.env.IMAP_HOST,
+    port: Number(process.env.IMAP_PORT),
+    tls: true,
+    authTimeout: 10000,
+    tlsOptions: { rejectUnauthorized: false },
+  };
+
   try {
-    const connection = await imaps.connect({ imap: config.imap });
+    const connection = await imaps.connect({ imap: imapConfig });
     await connection.openBox('INBOX');
 
     const searchCriteria = ['UNSEEN']; // Só não lidos
@@ -67,26 +65,17 @@ async function lerEmails() {
 
     const results = await connection.search(searchCriteria, fetchOptions);
 
-    console.log(`Foram encontrados ${results.length} e-mails não lidos.`);
+    console.log(`📨 Revenda "${revenda.nome}" (${revenda.user_leads}) - ${results.length} e-mails não lidos.`);
 
     for (const res of results) {
       const all = res.parts.find(part => part.which === '');
       const parsed = await simpleParser(all.body);
 
-      const assunto = parsed.subject;
-      const remetente = parsed.from.text;
       const texto = parsed.text;
-
-      console.log("──────────────────────────────");
-      console.log("Assunto:", assunto);
-      console.log("De:", remetente);
-      console.log("Texto (preview):", texto.substring(0, 300));
 
       // Extrai os campos do lead OLX
       const lead = extrairCamposOLX(texto);
-      console.log("🚗 Lead extraído OLX:", lead);
 
-      // Monta objeto p/ Supabase
       const leadSupabase = {
         nome: lead.nome || "",
         telefone: lead.fone || "",
@@ -97,56 +86,71 @@ async function lerEmails() {
         etapa: "nova proposta",
         created_at: new Date().toISOString(),
         vendedor_id: null,
-        revenda_id: null,
+        revenda_id: revenda.id,
         id_externo: lead.leadId || "",
         email: lead.email || "",
         imagem: lead.imagem || ""
       };
 
-      console.log("🔵 Lead para Supabase:", leadSupabase);
+      // Verifica duplicidade antes de inserir
+      const { data: leadExistente } = await supabase
+        .from('leads')
+        .select('id')
+        .eq('id_externo', leadSupabase.id_externo)
+        .eq('origem', leadSupabase.origem);
 
-      // Insere no Supabase
-      // --- SUBSTITUA O BLOCO DE INSERÇÃO POR ESTE ---
-const { data: leadExistente, error: errorBusca } = await supabase
-.from('leads')
-.select('id')
-.eq('id_externo', leadSupabase.id_externo)
-.eq('origem', leadSupabase.origem);
+      if (leadExistente && leadExistente.length > 0) {
+        console.log("⚠️ Lead duplicado não inserido:", leadSupabase.id_externo, "-", leadSupabase.origem);
+      } else {
+        const { data, error } = await supabase.from('leads').insert([leadSupabase]);
+        if (error) {
+          console.error("❌ Erro ao inserir lead OLX no Supabase:", error);
+        } else {
+          console.log("✅ Lead OLX salvo no Supabase:", data);
 
-if (leadExistente && leadExistente.length > 0) {
-console.log("⚠️ Lead duplicado não inserido:", leadSupabase.id_externo, "-", leadSupabase.origem);
-} else {
-const { data, error } = await supabase.from('leads').insert([leadSupabase]);
-if (error) {
-  console.error("❌ Erro ao inserir lead OLX no Supabase:", error);
-} else {
-  console.log("✅ Lead OLX salvo no Supabase:", data);
-  // --- Adiciona evento na timeline ---
-if (data && data[0] && data[0].id) {
-    const timelineRow = {
-      lead_id: data[0].id,
-      tipo: 'captura_olx',
-      conteudo: `Lead captado automaticamente da OLX em ${new Date().toLocaleString("pt-BR")}`,
-      criado_em: new Date().toISOString(),
-      usuario_id: null // ou o id do usuário responsável, se aplicável
-    };
-    const { error: errorTimeline } = await supabase.from('timeline').insert([timelineRow]);
-    if (errorTimeline) {
-      console.error("❌ Erro ao inserir evento na timeline:", errorTimeline);
-    } else {
-      console.log("🕒 Evento registrado na timeline.");
-    }
-  }
-  
-}
-}
-
+          // --- Adiciona evento na timeline ---
+          if (data && data[0] && data[0].id) {
+            const timelineRow = {
+              lead_id: data[0].id,
+              tipo: 'captura_olx',
+              conteudo: `Lead captado automaticamente da OLX em ${new Date().toLocaleString("pt-BR")}`,
+              criado_em: new Date().toISOString(),
+              usuario_id: null // ou o id do usuário responsável, se aplicável
+            };
+            const { error: errorTimeline } = await supabase.from('timeline').insert([timelineRow]);
+            if (errorTimeline) {
+              console.error("❌ Erro ao inserir evento na timeline:", errorTimeline);
+            } else {
+              console.log("🕒 Evento registrado na timeline.");
+            }
+          }
+        }
+      }
     }
 
     connection.end();
   } catch (error) {
-    console.error("Erro ao ler e-mails:", error);
+    console.error(`Erro ao processar e-mails para a revenda "${revenda.nome}":`, error);
   }
 }
 
-lerEmails();
+// Função principal: busca TODAS as revendas e processa cada uma
+async function processarLeadsDeTodasRevendas() {
+  const { data: revendas, error } = await supabase.from('revenda').select('*');
+  if (error) {
+    console.error("Erro ao buscar revendas:", error);
+    return;
+  }
+  if (!revendas || revendas.length === 0) {
+    console.log("Nenhuma revenda encontrada.");
+    return;
+  }
+
+  // Processa cada revenda sequencialmente (pode ser paralelizado se quiser)
+  for (const revenda of revendas) {
+    await lerEmailsDaRevenda(revenda);
+  }
+}
+
+// Executa
+processarLeadsDeTodasRevendas();
