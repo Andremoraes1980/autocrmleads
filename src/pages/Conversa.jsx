@@ -111,6 +111,11 @@ function ModalNotaLigacao({ open, onClose, onSave, tempo }) {
   );
 }
 
+function capitalize(str) {
+  if (!str) return "";
+  return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
 function ModalNota({ open, onClose, onSave }) {
   const [nota, setNota] = useState("");
 
@@ -1481,12 +1486,81 @@ console.log({
                 <option>Negociação</option>
                 <option>Sem Contato</option>
               </select>
+              <div className={styles["lead-mini-card"]}>
+  <div className={styles["lead-mini-card-top"]}>
+    <img
+      src={
+        lead.origem === "olx"
+          ? "/olx.png"
+          : lead.origem === "mercadolivre"
+          ? "/mercadolivre.png"
+          : lead.origem === "webmotors"
+          ? "/webmotors.png"
+          : "/defaultlogo.png"
+      }
+      alt={lead.origem}
+      className={styles["mini-logo"]}
+    />
+    <span className={styles["mini-origem"]}>
+      {lead.origem ? lead.origem.charAt(0).toUpperCase() + lead.origem.slice(1) : "Origem"}
+    </span>
+  </div>
+  <div
+    className={styles["mini-lead-id"]}
+    title={lead.id_externo || ""}
+  >
+    Lead Id&nbsp;–&nbsp;
+    <span className={styles["mini-lead-id-text"]}>
+      {lead.id_externo || "—"}
+    </span>
+  </div>
+</div>
+
+
             </div>
           </div>
           <div className={styles["conversa-header-right"]}>
-            <div className={styles["conversa-info-line"]}>🚗 {lead.veiculo}</div>
-            <div className={styles["conversa-info-line"]}>💰 {lead.preco}</div>
-          </div>
+  <div className={styles["conversa-info-line"]} style={{ display: "flex", alignItems: "center" }}>
+    <span
+      className={styles["veiculo-truncado"]}
+      title={lead.veiculo}
+      style={{
+        display: "inline-block",
+        maxWidth: 220,      // ajuste para o tamanho do seu layout!
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        whiteSpace: "nowrap",
+        verticalAlign: "middle",
+        marginRight: 10,    // espaço entre texto e imagem
+      }}
+    >
+      {lead.veiculo}
+    </span>
+    {lead.imagem ? (
+      <img
+        src={lead.imagem}
+        alt="Foto do veículo"
+        style={{
+          width: 36,
+          height: 36,
+          objectFit: "cover",
+          borderRadius: "50%",
+          border: "2px solid #eee",
+          background: "#fff",
+          marginLeft: 0,    // sem margem à esquerda (encosta na borda)
+        }}
+      />
+    ) : (
+      <span style={{ marginLeft: 0 }}>🚗</span>
+    )}
+  </div>
+  <div className={styles["conversa-info-line"]}>
+  💰 {Number(lead.preco).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}
+</div>
+
+</div>
+
+
         </div>
       </div>
 
@@ -1505,426 +1579,472 @@ console.log({
     }}
   />
 
-  {historico.map((item) => {
-    // 1. EVENTO DE LIGAÇÃO
-if (item.tipo === "ligacao") {
+{historico.map((item, idx) => {
+  const dataAtual = new Date(item.criado_em);
+  const anterior = historico[idx - 1];
+  const mostrarSeparador =
+    idx === 0 ||
+    (anterior && new Date(anterior.criado_em).toDateString() !== dataAtual.toDateString());
+
   return (
-    <React.Fragment key={"tl-ligacao-" + item.id}>
-      {/* Linha da timeline de ligação */}
-      <div
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          margin: '8px 0 0 0',
-          position: 'relative',
-          zIndex: 1,
-          minHeight: 24,
-        }}
-      >
+    <React.Fragment key={item.id}>
+      {mostrarSeparador && (
         <div
           style={{
-            width: 28,
-            height: 28,
-            background: '#e1f5fe',
-            border: '2px solid #4fc3f7',
-            borderRadius: 14,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            marginRight: 8,
-            marginLeft: -6,
-            boxShadow: '0 2px 8px #b3e5fc90',
-          }}
-        >
-          <span style={{ fontSize: 14, color: '#039be5' }}>📞</span>
-        </div>
-        <span style={{ fontWeight: 400, color: '#0277bd', fontSize: 12 }}>
-          {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-          {item.usuario_id && mapaUsuarios[item.usuario_id] && (
-            <span style={{ marginLeft: 4, color: '#0277bd' }}>
-              {formatarNome(mapaUsuarios[item.usuario_id].nome)}
-            </span>
-          )}
-          <span style={{ marginLeft: 4, color: "#7fa9df" }}>
-            registrou uma ligação
-          </span>
-          {item.duracao && (
-            <span style={{ marginLeft: 6, color: "#6ec6ff" }}>
-              (Duração: {String(Math.floor(item.duracao / 60)).padStart(2, '0')}:{String(item.duracao % 60).padStart(2, '0')})
-            </span>
-          )}
-        </span>
-      </div>
-      {/* Balão azul claro abaixo, se tiver nota */}
-      {item.nota && (
-        <div
-          style={{
-            background: '#e3f2fd',
-            border: '1.5px solid #90caf9',
-            borderRadius: 10,
-            color: '#01579b',
-            fontSize: 13,
-            minWidth: '180px',
-            maxWidth: '80%',
-            width: '80%',
-            marginLeft: "16px",
-            marginRight: "31px",
-            padding: '10px 18px',
-            marginBottom: 12,
-            boxShadow: '0 2px 8px #90caf955',
-            position: 'relative',
+            width: "100%",
             textAlign: "left",
+            margin: "20px 0 10px 0",
+            color: "#aaa",
+            fontWeight: 500,
+            fontSize: 12,
+            letterSpacing: 0.2,
+            background: "none",
+            textTransform: "capitalize",
           }}
         >
-          {item.nota}
+          {capitalize(
+            dataAtual.toLocaleDateString("pt-BR", {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "2-digit",
+            })
+          )}
         </div>
       )}
+
+      {/* 1. EVENTO DE LIGAÇÃO */}
+      {item.tipo === "ligacao" && (
+        <React.Fragment>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              margin: '8px 0 0 0',
+              position: 'relative',
+              zIndex: 1,
+              minHeight: 24,
+            }}
+          >
+            <div
+              style={{
+                width: 28,
+                height: 28,
+                background: '#e1f5fe',
+                border: '2px solid #4fc3f7',
+                borderRadius: 14,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginRight: 8,
+                marginLeft: -6,
+                boxShadow: '0 2px 8px #b3e5fc90',
+              }}
+            >
+              <span style={{ fontSize: 14, color: '#039be5' }}>📞</span>
+            </div>
+            <span style={{ fontWeight: 400, color: '#0277bd', fontSize: 12 }}>
+              {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              {item.usuario_id && mapaUsuarios[item.usuario_id] && (
+                <span style={{ marginLeft: 4, color: '#0277bd' }}>
+                  {formatarNome(mapaUsuarios[item.usuario_id].nome)}
+                </span>
+              )}
+              <span style={{ marginLeft: 4, color: "#7fa9df" }}>
+                registrou uma ligação
+              </span>
+              {item.duracao && (
+                <span style={{ marginLeft: 6, color: "#6ec6ff" }}>
+                  (Duração: {String(Math.floor(item.duracao / 60)).padStart(2, '0')}:{String(item.duracao % 60).padStart(2, '0')})
+                </span>
+              )}
+            </span>
+          </div>
+          {item.nota && (
+            <div
+              style={{
+                background: '#e3f2fd',
+                border: '1.5px solid #90caf9',
+                borderRadius: 10,
+                color: '#01579b',
+                fontSize: 13,
+                minWidth: '180px',
+                maxWidth: '80%',
+                width: '80%',
+                marginLeft: "16px",
+                marginRight: "31px",
+                padding: '10px 18px',
+                marginBottom: 12,
+                boxShadow: '0 2px 8px #90caf955',
+                position: 'relative',
+                textAlign: "left",
+              }}
+            >
+              {item.nota}
+            </div>
+          )}
+        </React.Fragment>
+      )}
+
+      {/* 2. CAPTURA CLASSIFICADO / LEAD RECEBIDO */}
+      {(item.tipo === "captura_classificado" || item.tipo === "lead_recebido") && (
+        <div
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            margin: '8px 0 0 0',
+            position: 'relative',
+            zIndex: 1,
+            minHeight: 24,
+          }}
+        >
+          <div
+            style={{
+              width: 28,
+              height: 28,
+              background: '#f0f6fd',
+              border: '2px solid #1976d2',
+              borderRadius: 14,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              marginRight: 8,
+              marginLeft: -6,
+              boxShadow: '0 2px 8px #1976d240',
+            }}
+          >
+            <span style={{ fontSize: 14, color: '#1976d2' }}>📥</span>
+          </div>
+          <span style={{ fontWeight: 500, color: '#1976d2', fontSize: 12 }}>
+            {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+            <span style={{ marginLeft: 7, color: "#2e3953" }}>
+              {item.conteudo}
+            </span>
+          </span>
+        </div>
+      )}
+
+      {/* 3. MENSAGEM */}
+      {item.tipo_evento === "mensagem" && (() => {
+        const remetente = mapaUsuarios[item.remetente_id];
+        const isCliente = !["vendedor", "admin", "gerente"].includes(remetente?.tipo);
+
+        return (
+          <div className={styles["conversa-message"]}>
+            {isCliente && (
+              <div className={styles["conversa-initials"]}>
+                {formatarNome(remetente?.nome || "").charAt(0)}
+              </div>
+            )}
+            <div
+              className={styles["conversa-bubble"]}
+              style={
+                isCliente
+                  ? { marginLeft: "31px", marginRight: "16px", width: "80%", minWidth: "180px", maxWidth: "80%" }
+                  : { marginLeft: "16px", marginRight: "31px", width: "80%", minWidth: "180px", maxWidth: "80%" }
+              }
+            >
+              <div className={styles["conversa-sender"]}>
+                {formatarNome(remetente?.nome || "")}
+              </div>
+              <span>{item.mensagem}</span>
+              <div className={styles["conversa-time"]}>
+                {new Date(item.criado_em).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
+              </div>
+            </div>
+            {!isCliente && (
+              <div className={styles["conversa-initials"]}>
+                {formatarNome(remetente?.nome || "").charAt(0)}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* 4. EVENTO DE ANOTAÇÃO, AGENDAMENTO, TROCA VENDEDOR, STATUS */}
+      {item.tipo_evento === "timeline" && (() => {
+        const isNota = item.tipo === "anotacao";
+        const isStatus = item.tipo === "etapa" || item.tipo === "status";
+
+        if (isNota) {
+          return (
+            <React.Fragment>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  margin: '8px 0 0 0',
+                  position: 'relative',
+                  zIndex: 1,
+                  minHeight: 24,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: '#fff8e1',
+                    border: '2px solid #ffc107',
+                    borderRadius: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
+                    marginLeft: -6,
+                    boxShadow: '0 2px 8px #ffe08260',
+                  }}
+                >
+                  <span style={{ fontSize: 11, color: '#ff9800' }}>📝</span>
+                </div>
+                <span style={{ fontWeight: 400, color: '#916900', fontSize: 11 }}>
+                  {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {item.usuario_id && mapaUsuarios[item.usuario_id] && (
+                    <span style={{ marginLeft: 4, color: '#916900' }}>
+                      {formatarNome(mapaUsuarios[item.usuario_id].nome)}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 4, color: "#d6b977" }}>
+                    adicionou uma nota
+                  </span>
+                </span>
+              </div>
+              <div
+                style={{
+                  background: '#fffde7',
+                  border: '1.5px solid #ffe082',
+                  borderRadius: 10,
+                  color: '#7c5c05',
+                  fontSize: 15,
+                  minWidth: '180px',
+                  maxWidth: '80%',
+                  width: '80%',
+                  marginLeft: "16px",
+                  marginRight: "31px",
+                  padding: '12px 20px',
+                  marginBottom: 12,
+                  boxShadow: '0 2px 8px #ffe08233',
+                  position: 'relative',
+                }}
+              >
+                <div style={{
+                  fontWeight: 400,
+                  fontSize: 12,
+                  color: "#222",
+                  textAlign: "left",
+                }}>
+                  {item.conteudo.replace("📝 Nova anotação: ", "")}
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (item.tipo === "agendamento") {
+          const dataFormatada = item.data
+            ? (() => {
+                const d = new Date(item.data);
+                if (!isNaN(d.getTime())) {
+                  return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
+                }
+                const partes = item.data.split("-");
+                if (partes.length === 3) {
+                  return partes[2] + '/' + partes[1];
+                }
+                return item.data;
+              })()
+            : "";
+
+          return (
+            <React.Fragment>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  margin: '8px 0 0 0',
+                  position: 'relative',
+                  zIndex: 1,
+                  minHeight: 24,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: '#e8f5e9',
+                    border: '2px solid #66bb6a',
+                    borderRadius: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
+                    marginLeft: -6,
+                    boxShadow: '0 2px 8px #c8e6c9',
+                  }}
+                >
+                  <span style={{ fontSize: 15, color: '#388e3c' }}>📅</span>
+                </div>
+                <span style={{ fontWeight: 400, color: '#2e7d32', fontSize: 12 }}>
+                  {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {item.usuario_id && mapaUsuarios[item.usuario_id] && (
+                    <span style={{ marginLeft: 4, color: '#2e7d32' }}>
+                      {formatarNome(mapaUsuarios[item.usuario_id].nome)}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 4, color: "#43a047" }}>
+                    agendou um retorno
+                  </span>
+                  {item.data && item.hora && (
+                    <span style={{ marginLeft: 4, color: "#2e7d32" }}>
+                      para: {dataFormatada} às {item.hora.slice(0,5)}
+                    </span>
+                  )}
+                </span>
+              </div>
+              <div
+                style={{
+                  background: '#e8f5e9',
+                  border: '1.5px solid #66bb6a',
+                  borderRadius: 10,
+                  color: '#2e7d32',
+                  fontSize: 15,
+                  minWidth: '180px',
+                  maxWidth: '80%',
+                  width: '80%',
+                  marginLeft: "16px",
+                  marginRight: "31px",
+                  padding: '12px 20px',
+                  marginBottom: 12,
+                  boxShadow: '0 2px 8px #c8e6c9',
+                  position: 'relative',
+                }}
+              >
+                <div style={{
+                  fontWeight: 400,
+                  fontSize: 13,
+                  color: "#2e7d32",
+                  textAlign: "left",
+                }}>
+                  {item.descricao}
+                </div>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (item.tipo === "troca_vendedor") {
+          return (
+            <React.Fragment>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  margin: '8px 0 0 0',
+                  position: 'relative',
+                  zIndex: 1,
+                  minHeight: 24,
+                }}
+              >
+                <div
+                  style={{
+                    width: 28,
+                    height: 28,
+                    background: '#e0f7fa',
+                    border: '2px solid #26c6da',
+                    borderRadius: 14,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    marginRight: 8,
+                    marginLeft: -6,
+                    boxShadow: '0 2px 8px #b2ebf2',
+                  }}
+                >
+                  <span style={{ fontSize: 15, color: '#00838f' }}>🔄</span>
+                </div>
+                <span style={{ fontWeight: 400, color: '#00838f', fontSize: 12 }}>
+                  {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {item.usuario_id && mapaUsuarios[item.usuario_id] && (
+                    <span style={{ marginLeft: 4, color: '#00838f' }}>
+                      {formatarNome(mapaUsuarios[item.usuario_id].nome)}
+                    </span>
+                  )}
+                  <span style={{ marginLeft: 4, color: "#26c6da" }}>
+                    encaminhou o lead para
+                  </span>
+                  <span style={{ marginLeft: 4, color: "#00838f" }}>
+                    {item.conteudo.replace("🔄 ", "")}
+                  </span>
+                </span>
+              </div>
+            </React.Fragment>
+          );
+        }
+
+        if (isStatus) {
+          const hora = new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          const usuario = item.usuario_id && mapaUsuarios[item.usuario_id]
+            ? formatarNome(mapaUsuarios[item.usuario_id].nome)
+            : "";
+
+          let textoMeio = item.conteudo;
+          let statusNovo = "";
+          const match = item.conteudo.match(/^(.*?para )(.+)$/i);
+          if (match) {
+            textoMeio = match[1];
+            statusNovo = match[2];
+          }
+
+          return (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                margin: '8px 0 8px 0',
+                position: 'relative',
+                zIndex: 1,
+                minHeight: 32,
+              }}
+            >
+              <div
+                style={{
+                  width: 28,
+                  height: 28,
+                  background: '#fff',
+                  border: '2px solid #e0e7ef',
+                  borderRadius: 14,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: 8,
+                  marginLeft: -6,
+                  boxShadow: '0 1px 3px rgba(50,70,100,0.05)',
+                }}
+              >
+                <span style={{ fontSize: 11, color: '#1976d2' }}>🔄</span>
+              </div>
+              <span style={{ fontWeight: 400, color: '#1976d2', fontSize: 11 }}>
+                <span style={{ color: "#1976d2" }}>
+                  {hora} {usuario}
+                </span>
+                <span style={{ color: "#b3c9e6", marginLeft: 6 }}>
+                  {textoMeio}
+                </span>
+                <span style={{ color: "#1976d2" }}>
+                  {statusNovo}
+                </span>
+              </span>
+            </div>
+          );
+        }
+
+        return null;
+      })()}
     </React.Fragment>
   );
-}
-
-    if (item.tipo_evento === "mensagem") {
-      // BALÃO DE MENSAGEM NORMAL (pronto para copiar e colar)
-      const remetente = mapaUsuarios[item.remetente_id];
-      const isCliente = !["vendedor", "admin", "gerente"].includes(remetente?.tipo);
-
-      return (
-        <div key={item.id} className={styles["conversa-message"]}>
-          {isCliente && (
-            <div className={styles["conversa-initials"]}>
-              {formatarNome(remetente?.nome || "").charAt(0)}
-            </div>
-          )}
-          <div
-            className={styles["conversa-bubble"]}
-            style={
-              isCliente
-                ? { marginLeft: "31px", marginRight: "16px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-                : { marginLeft: "16px", marginRight: "31px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-            }
-          >
-            <div className={styles["conversa-sender"]}>
-              {formatarNome(remetente?.nome || "")}
-            </div>
-            <span>{item.mensagem}</span>
-            <div className={styles["conversa-time"]}>
-              {new Date(item.criado_em).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })}
-            </div>
-          </div>
-          {!isCliente && (
-            <div className={styles["conversa-initials"]}>
-              {formatarNome(remetente?.nome || "").charAt(0)}
-            </div>
-          )}
-        </div>
-      );
-      
-      
-      
-    } else if (item.tipo_evento === "timeline") {
-      // Personalização para ANOTAÇÃO (nota)
-      const isNota = item.tipo === "anotacao";
-      const isStatus = item.tipo === "etapa" || item.tipo === "status";
-    
-      if (isNota) {
-        // Timeline: "Nota adicionada por Fulano"
-        // Balão amarelo: só o texto da nota
-        return (
-          <React.Fragment key={"tl-" + item.id}>
-            {/* Linha da timeline */}
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '8px 0 0 0',
-                position: 'relative',
-                zIndex: 1,
-                minHeight: 24,
-              }}
-            >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: '#fff8e1',
-                  border: '2px solid #ffc107',
-                  borderRadius: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 8,
-                  marginLeft: -6,
-                  boxShadow: '0 2px 8px #ffe08260',
-                }}
-              >
-                <span style={{ fontSize: 11, color: '#ff9800' }}>📝</span>
-</div>
-<span style={{ fontWeight: 400, color: '#916900', fontSize: 11 }}>
-  {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-  {item.usuario_id && mapaUsuarios[item.usuario_id] && (
-    <span style={{ marginLeft: 4, color: '#916900' }}>
-      {formatarNome(mapaUsuarios[item.usuario_id].nome)}
-    </span>
-  )}
-  <span style={{ marginLeft: 4, color: "#d6b977" }}>
-    adicionou uma nota
-  </span>
-</span>
-
-
-            </div>
-            {/* Balão amarelo abaixo */}
-            <div
-              style={{
-                background: '#fffde7',
-                border: '1.5px solid #ffe082',
-                borderRadius: 10,
-                color: '#7c5c05',
-                fontSize: 15,
-                minWidth: '180px',
-                maxWidth: '80%',
-                width: '80%',
-                marginLeft: "16px",
-                marginRight: "31px",
-                padding: '12px 20px',
-                marginBottom: 12,
-                boxShadow: '0 2px 8px #ffe08233',
-                position: 'relative',
-              }}
-            >
-              <div style={{
-  fontWeight: 400,
-  fontSize: 12,
-  color: "#222",
-  textAlign: "left", // <-- adicione esta linha!
-}}>
-  {item.conteudo.replace("📝 Nova anotação: ", "")}
-</div>
-            </div>
-          </React.Fragment>
-        );
-      }
-      // Personalização para AGENDAMENTO
-      if (item.tipo === "agendamento") {
-        // Formatando data para "DD/MM"
-        const dataFormatada = item.data
-          ? (() => {
-              const d = new Date(item.data);
-              // Se item.data vier como string tipo "2025-06-11"
-              if (!isNaN(d.getTime())) {
-                return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0');
-              }
-              // Se vier como string "11/06"
-              const partes = item.data.split("-");
-              if (partes.length === 3) {
-                return partes[2] + '/' + partes[1];
-              }
-              return item.data;
-            })()
-          : "";
-      
-        return (
-          <React.Fragment key={"tl-agenda-" + item.id}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '8px 0 0 0',
-                position: 'relative',
-                zIndex: 1,
-                minHeight: 24,
-              }}
-            >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: '#e8f5e9',          // Verde claro fundo
-                  border: '2px solid #66bb6a',     // Verde borda
-                  borderRadius: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 8,
-                  marginLeft: -6,
-                  boxShadow: '0 2px 8px #c8e6c9',
-                }}
-              >
-                <span style={{ fontSize: 15, color: '#388e3c' }}>📅</span> {/* Verde forte no ícone */}
-              </div>
-              <span style={{ fontWeight: 400, color: '#2e7d32', fontSize: 12 }}>
-                {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                {item.usuario_id && mapaUsuarios[item.usuario_id] && (
-                  <span style={{ marginLeft: 4, color: '#2e7d32' }}>
-                    {formatarNome(mapaUsuarios[item.usuario_id].nome)}
-                  </span>
-                )}
-                <span style={{ marginLeft: 4, color: "#43a047" }}>
-                  agendou um retorno
-                </span>
-                {item.data && item.hora && (
-                  <span style={{ marginLeft: 4, color: "#2e7d32" }}>
-                    para: {dataFormatada} às {item.hora.slice(0,5)}
-                  </span>
-                )}
-              </span>
-            </div>
-            {/* Balão verde claro abaixo */}
-            <div
-              style={{
-                background: '#e8f5e9',
-                border: '1.5px solid #66bb6a',
-                borderRadius: 10,
-                color: '#2e7d32',
-                fontSize: 15,
-                minWidth: '180px',
-                maxWidth: '80%',
-                width: '80%',
-                marginLeft: "16px",
-                marginRight: "31px",
-                padding: '12px 20px',
-                marginBottom: 12,
-                boxShadow: '0 2px 8px #c8e6c9',
-                position: 'relative',
-              }}
-            >
-              <div style={{
-                fontWeight: 400,
-                fontSize: 13,
-                color: "#2e7d32",
-                textAlign: "left",
-              }}>
-                {item.descricao}
-              </div>
-            </div>
-          </React.Fragment>
-        );
-      }
-      if (item.tipo === "troca_vendedor") {
-        return (
-          <React.Fragment key={"tl-troca-vendedor-" + item.id}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                margin: '8px 0 0 0',
-                position: 'relative',
-                zIndex: 1,
-                minHeight: 24,
-              }}
-            >
-              <div
-                style={{
-                  width: 28,
-                  height: 28,
-                  background: '#e0f7fa',
-                  border: '2px solid #26c6da',
-                  borderRadius: 14,
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  marginRight: 8,
-                  marginLeft: -6,
-                  boxShadow: '0 2px 8px #b2ebf2',
-                }}
-              >
-                <span style={{ fontSize: 15, color: '#00838f' }}>🔄</span>
-              </div>
-              <span style={{ fontWeight: 400, color: '#00838f', fontSize: 12 }}>
-                {new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                {item.usuario_id && mapaUsuarios[item.usuario_id] && (
-                  <span style={{ marginLeft: 4, color: '#00838f' }}>
-                    {formatarNome(mapaUsuarios[item.usuario_id].nome)}
-                  </span>
-                )}
-                <span style={{ marginLeft: 4, color: "#26c6da" }}>
-                  encaminhou o lead para
-                </span>
-                <span style={{ marginLeft: 4, color: "#00838f" }}>
-                  {item.conteudo.replace("🔄 ", "")}
-                </span>
-              </span>
-            </div>
-          </React.Fragment>
-        );
-      }
-      
-      
-      
-
-    
-      // Eventos de status e outros da timeline
-if (isStatus) {
-  const hora = new Date(item.criado_em).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-  const usuario = item.usuario_id && mapaUsuarios[item.usuario_id]
-    ? formatarNome(mapaUsuarios[item.usuario_id].nome)
-    : "";
-
-  // Separar meio e final (novo status)
-  let textoMeio = item.conteudo;
-  let statusNovo = "";
-  const match = item.conteudo.match(/^(.*?para )(.+)$/i);
-  if (match) {
-    textoMeio = match[1];   // "Alterou status de 'nova proposta' para "
-    statusNovo = match[2];  // "em negociação"
-  }
-
-  return (
-    <div
-      key={"tl-" + item.id}
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        margin: '8px 0 8px 0',
-        position: 'relative',
-        zIndex: 1,
-        minHeight: 32,
-      }}
-    >
-      <div
-        style={{
-          width: 28,
-          height: 28,
-          background: '#fff',
-          border: '2px solid #e0e7ef',
-          borderRadius: 14,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginRight: 8,
-          marginLeft: -6,
-          boxShadow: '0 1px 3px rgba(50,70,100,0.05)',
-        }}
-      >
-        <span style={{ fontSize: 11, color: '#1976d2' }}>🔄</span>
-      </div>
-      <span style={{ fontWeight: 400, color: '#1976d2', fontSize: 11 }}>
-        <span style={{ color: "#1976d2" }}>
-          {hora} {usuario}
-        </span>
-        <span style={{ color: "#b3c9e6", marginLeft: 6 }}>
-          {textoMeio}
-        </span>
-        <span style={{ color: "#1976d2" }}>
-          {statusNovo}
-        </span>
-      </span>
-    </div>
-  );
-}
-
-// Se não for status, mantem o resto igual (ou retorna null)
-
-
-    }
-    
-    
-    return null;
-  })}
-</div>
+})}</div>
 
 
 

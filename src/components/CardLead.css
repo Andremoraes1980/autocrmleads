@@ -78,13 +78,13 @@
   .dotted-rectangle {
     border: 2px dotted #cbc3c3; /* Estilo pontilhado */
     border-radius: 8px;
-    height: 30px;
+    height: 45px;
     padding: 12px;
     display: flex;
     flex-direction: column;
     align-items: stretch;
     justify-content: center;
-    margin-top: 5px;
+    margin-top: 4px;
   }
   
   .field {
@@ -170,12 +170,13 @@
   .section {
     display: flex;
     align-items: center;
-    gap: 6px; /* Espaço entre ícone e texto */
+    
   }
   
   .section .icon {
     font-size: 1.2em;
-    margin-right: 4px;
+    margin-left: -9px
+    
   }
   
   .section .text {
@@ -183,11 +184,11 @@
     font-size: 1em;
     word-break: break-word;
     /* Limita largura, impede ocupar toda a linha: */
-    max-width: 140px;
+    max-width: 88%;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    text-align: left;
+    margin-right: -7px;
   }
   
   

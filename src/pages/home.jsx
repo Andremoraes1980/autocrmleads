@@ -28,12 +28,25 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 
 const etapas = [
-  "Nova Proposta",
-  "Não Respondidos",
-  "Visita Agendada",
-  "Negociação",
-  "Sem Contato",
+  "nova_proposta",
+  "nao_respondido",
+  "visita_agendada",
+  "negociacao",
+  "sem_contato",
+  "vendido",
+  "perdido"
 ];
+
+const etapaLabels = {
+  nova_proposta: "Nova Proposta",
+  nao_respondido: "Não Respondidos",
+  visita_agendada: "Visita Agendada",
+  negociacao: "Negociação",
+  sem_contato: "Sem Contato",
+  vendido: "Vendido",
+  perdido: "Perdido"
+};
+
 
 function DroppableColumn({ etapa, quantidade, children }) {
   const { setNodeRef } = useDroppable({
@@ -50,8 +63,9 @@ function DroppableColumn({ etapa, quantidade, children }) {
       style={{ minHeight: `${alturaColuna}px`, backgroundColor: "#eaeaea" }}
     >
       <h2>
-        {etapa} ({quantidade})
-      </h2>
+  {etapaLabels[etapa] || etapa} ({quantidade})
+</h2>
+
       {children}
     </div>
   );
@@ -118,6 +132,7 @@ function SortableCard({ lead, vendedores, onAbrirModalVendedor }) {
   veiculo={lead.veiculo}
   versao={lead.versao ?? "Modelo não informado"}
   tempoDecorrido={lead.tempoDecorrido}
+  imagem={lead.imagem}
   origem={lead.origem}
   temperaturaInicial={lead.temperatura}
   vendedorInicial={lead.vendedor_id}

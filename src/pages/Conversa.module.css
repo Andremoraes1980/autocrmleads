@@ -63,14 +63,14 @@
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 2.8rem;
   margin-top: -3px;
+  margin-right: 32px;
 }
 
 .conversa-status-select {
   font-size: 0.7rem;
   padding: 0.2rem 0.4rem;
-  margin-left: 15px;
+  margin-left: 24px;
   border-radius: 5px;
   border: 1px solid #edeaea;
   background-color: #fff;
@@ -548,6 +548,75 @@
   gap: 6px;
   margin-top: 4px;
 }
+
+.lead-mini-card {
+  position: absolute;
+  left: 50%;
+  top: 53px; /* ajuste conforme seu header */
+  transform: translateX(-57%);
+  width: 164px;
+  height: 60px;
+  background: #fff;
+  border-radius: 14px;
+  box-shadow: 0 11px 15px #0001, 0 2px 8px #00000015;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  z-index: 12;
+  border: 1.5px solid #f2f2f2;
+  padding: 0 10px;
+  pointer-events: auto;
+}
+
+.lead-mini-card-top {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  width: 100%;
+  gap: 7%;
+}
+
+.mini-logo {
+  width: 24px;
+  height: 24px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 50px;
+  border: 1px solid #ededed;
+  margin-right: 7px;
+  box-shadow: 0 1px 4px #0001;
+}
+
+.mini-origem {
+  font-size: 15px;
+  color: #393b40;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  text-transform: capitalize;
+}
+
+.mini-lead-id {
+  width: 100%;
+  font-size: 10px;
+  color: #8e8e8e;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.mini-lead-id-text {
+  font-weight: 600;
+  color: #222;
+  max-width: 114px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  vertical-align: middle;
+  display: inline-block;
+}
+
 
 
 

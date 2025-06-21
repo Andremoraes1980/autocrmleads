@@ -3,6 +3,9 @@ const imaps = require('imap-simple');
 const { simpleParser } = require('mailparser');
 const { createClient } = require('@supabase/supabase-js');
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
+const cron = require('node-cron');
+
+
 
 function limparTexto(texto) {
   return texto
@@ -13,6 +16,7 @@ function limparTexto(texto) {
     .replace(/\n+/g, " ")             // troca quebras de linha por espaço
     .replace(/\s{2,}/g, " ")          // múltiplos espaços por um só
     .replace(/^\s+|\s+$/gm, "");      // remove espaços início/fim de cada linha
+
 }
 
 // ---- Função para extrair campos do lead OLX ----
@@ -75,6 +79,9 @@ async function lerEmailsDaRevenda(revenda) {
 
       // Extrai os campos do lead OLX
       const lead = extrairCamposOLX(texto);
+      lead.veiculo = (lead.veiculo || "").replace(/^Anúncio:\s*/i, "");
+      lead.preco = lead.valor || "";
+
 
       const leadSupabase = {
         nome: lead.nome || "",
@@ -83,9 +90,10 @@ async function lerEmailsDaRevenda(revenda) {
         origem: "olx",
         data_chegada: new Date().toISOString(),
         temperatura: "frio",
-        etapa: "nova proposta",
+        etapa: "nova_proposta",
         created_at: new Date().toISOString(),
         vendedor_id: null,
+        preco: lead.preco || "",
         revenda_id: revenda.id,
         id_externo: lead.leadId || "",
         email: lead.email || "",
@@ -152,5 +160,7 @@ async function processarLeadsDeTodasRevendas() {
   }
 }
 
-// Executa
-processarLeadsDeTodasRevendas();
+cron.schedule('*/2 * * * *', () => {
+  console.log("⏰ [" + new Date().toLocaleString() + "] Buscando leads OLX via e-mail...");
+  processarLeadsDeTodasRevendas();
+});

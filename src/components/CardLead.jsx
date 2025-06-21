@@ -4,6 +4,15 @@ import { FaRegClock } from "react-icons/fa";
 import { supabase } from "../lib/supabaseClient";
 import "./CardLead.css";
 
+const LOGOS_CLASSIFICADOS = {
+  olx: "/olx.png",
+  "mercado livre": "/mercadolivre.png",
+  webmotors: "/webmotors.png",
+  icarros: "/icarros.png",
+  // outros se quiser...
+};
+
+
 
 const CardLead = ({
     id,
@@ -14,6 +23,8 @@ const CardLead = ({
     vendedorNome = "",
     vendedores = [],
     tempoDecorrido = 0,
+    imagem = "",
+    origem = "",
     listeners = {},
     attributes = {},
     innerRef = null,
@@ -68,6 +79,10 @@ const CardLead = ({
     onTemperaturaChange(novaTemperatura);
   };
 
+ 
+  
+  
+
   const handleChangeVendedor = async (e) => {
     e.stopPropagation();
     const novoVendedor = e.target.value;
@@ -120,26 +135,27 @@ const { data, error } = await supabase
       <div className="dotted-rectangle">
   {/* Seção veículo + temperatura */}
   <div className="section">
-    <div className="icon">🚗</div>
-    <div className="text">{veiculo}</div>
-    <div
-      className={`temperatura-badge ${coresTemperatura[temperatura]}`}
-      onClick={trocarTemperatura}
+  <div className="icon">
+  {imagem ? (
+    <img
+      src={imagem}
+      alt="Foto do veículo"
       style={{
-        marginLeft: 8,
-        cursor: "pointer",
-        userSelect: "none",
-        padding: "2px 10px",
-        borderRadius: "12px",
-        fontWeight: "bold",
-        fontSize: "0.9em",
-        minWidth: 60,
-        textAlign: "center",
+        width: 36,
+        height: 36,
+        objectFit: "cover",
+        borderRadius: "50%",
+        border: "2px solid #eee",
+        background: "#fff"
       }}
-      title="Clique para trocar a temperatura"
-    >
-      {temperatura.toUpperCase()}
-    </div>
+    />
+  ) : (
+    "🚗"
+  )}
+</div>
+
+    <div className="text">{veiculo}</div>
+    
   </div>
 
   {/* Seção vendedor */}
@@ -152,8 +168,9 @@ const { data, error } = await supabase
       cursor: "pointer",
       textDecoration: "underline",
       fontSize: "1em",
-      marginTop: "4px",
-      display: "inline-block"
+      display: "inline-block",
+      marginleft:"-32"
+      
     }}
     title="Trocar vendedor"
     onClick={(e) => {
@@ -170,15 +187,46 @@ const { data, error } = await supabase
   >
     {vendedorNome || "Adicionar"}
   </span>
+  <div
+      className={`temperatura-badge ${coresTemperatura[temperatura]}`}
+      onClick={trocarTemperatura}
+      style={{
+        marginLeft: 8,
+        cursor: "pointer",
+        userSelect: "none",
+        padding: "2px 10px",
+        borderRadius: "12px",
+        fontWeight: "bold",
+        fontSize: "0.9em",
+        textAlign: "center",
+      }}
+      title="Clique para trocar a temperatura"
+    >
+      {temperatura.toUpperCase()}
+    </div>
 </div>
 
+
+
 </div>
 
 
-      <div className="footer">
-        <span>{formatarTempo(tempoDecorrido)}</span>
-        <span>classificado</span>
-      </div>
+<div className="footer" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+  <span>{formatarTempo(tempoDecorrido)}</span>
+  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+    {LOGOS_CLASSIFICADOS[origem?.toLowerCase()] && (
+      <img
+        src={LOGOS_CLASSIFICADOS[origem.toLowerCase()]}
+        alt={origem}
+        style={{ width: 17, height: 17, borderRadius: "50%", background: "#fff", border: "1px solid #eee", marginRight: 3 }}
+      />
+    )}
+    <span style={{ fontWeight: 500 }}>
+      {origem ? origem.charAt(0).toUpperCase() + origem.slice(1) : "Classificado"}
+    </span>
+  </div>
+</div>
+
     </div>
   );
 };
