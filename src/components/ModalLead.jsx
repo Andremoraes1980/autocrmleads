@@ -54,11 +54,24 @@ const { data: insertData, error } = await supabase
 
 
 
-    if (error) {
-      console.error("Erro ao salvar lead:", error);
-      alert("Erro ao salvar lead.");
-      return;
-    }
+    // ADICIONAR AQUI: Gravação na timeline após o lead ser salvo com sucesso
+if (insertData && insertData[0] && insertData[0].id) {
+  const mensagemTimeline = `🟢 ${insertData[0].nome} enviou um lead através do ${insertData[0].origem || origem}.`;
+  const timelineRow = {
+    lead_id: insertData[0].id,
+    tipo: "info",
+    usuario_id: user.id,
+    criado_em: new Date().toISOString(),
+    conteudo: mensagemTimeline,
+  };
+  const { error: errorTimeline } = await supabase.from("timeline").insert([timelineRow]);
+  if (errorTimeline) {
+    console.error("❌ Erro ao inserir evento na timeline:", errorTimeline);
+  } else {
+    console.log("🕒 Evento de chegada registrado na timeline:", mensagemTimeline);
+  }
+}
+
 
     console.log("Lead salvo com sucesso:", insertData); // ✅ Debug inserção
     onCreate(insertData?.[0] || formData);

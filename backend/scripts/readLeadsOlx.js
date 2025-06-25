@@ -110,28 +110,32 @@ async function lerEmailsDaRevenda(revenda) {
       if (leadExistente && leadExistente.length > 0) {
         console.log("⚠️ Lead duplicado não inserido:", leadSupabase.id_externo, "-", leadSupabase.origem);
       } else {
-        const { data, error } = await supabase.from('leads').insert([leadSupabase]);
+        const { data, error } = await supabase.from('leads').insert([leadSupabase]).select();
+        console.log("Resultado do insert do lead:", data, error);
+
         if (error) {
           console.error("❌ Erro ao inserir lead OLX no Supabase:", error);
         } else {
           console.log("✅ Lead OLX salvo no Supabase:", data);
 
+        
           // --- Adiciona evento na timeline ---
-          if (data && data[0] && data[0].id) {
-            const timelineRow = {
-              lead_id: data[0].id,
-              tipo: 'captura_olx',
-              conteudo: `Lead captado automaticamente da OLX em ${new Date().toLocaleString("pt-BR")}`,
-              criado_em: new Date().toISOString(),
-              usuario_id: null // ou o id do usuário responsável, se aplicável
-            };
-            const { error: errorTimeline } = await supabase.from('timeline').insert([timelineRow]);
-            if (errorTimeline) {
-              console.error("❌ Erro ao inserir evento na timeline:", errorTimeline);
-            } else {
-              console.log("🕒 Evento registrado na timeline.");
-            }
-          }
+if (data && data[0] && data[0].id) {
+  const timelineRow = {
+    lead_id: data[0].id,
+    tipo: 'info',
+    conteudo: `🟢 ${data[0].nome} enviou um lead através do OLX.`,
+    criado_em: new Date().toISOString(),
+    usuario_id: null // ou o id do usuário responsável, se aplicável
+  };
+  const { error: errorTimeline } = await supabase.from('timeline').insert([timelineRow]);
+  if (errorTimeline) {
+    console.error("❌ Erro ao inserir evento na timeline:", errorTimeline);
+  } else {
+    console.log("🕒 Evento de chegada registrado na timeline:", timelineRow.conteudo);
+  }
+}
+
         }
       }
     }

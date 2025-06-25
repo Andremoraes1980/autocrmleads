@@ -1,5 +1,5 @@
-
-
+import { io } from "socket.io-client";
+const socket = io("http://localhost:3001"); // ajuste a porta conforme seu backend
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./Conversa.module.css";
 import { supabase } from "../lib/supabaseClient";
@@ -347,7 +347,22 @@ const [modalNotaOpen, setModalNotaOpen] = useState(false);
 const [mostrarSeta, setMostrarSeta] = useState(false);
 const [mostrarFrasesProntas, setMostrarFrasesProntas] = useState(false);
 const [frasesProntas, setFrasesProntas] = useState([]);
+const [canalSelecionado, setCanalSelecionado] = useState("WhatsApp Cockpit");
 
+
+
+
+
+const fetchMensagens = async () => {
+  try {
+    const res = await fetch(`http://localhost:5001/api/mensagens/${leadId}`);
+    const data = await res.json();
+    setMensagens(data || []);
+    console.log("🟢 Mensagens buscadas via API REST:", data);
+  } catch (err) {
+    console.error("❌ Erro ao buscar mensagens via API REST:", err);
+  }
+};
 
 
 const handleSalvarAgendamento = async ({ data, hora, descricao }) => {
@@ -389,6 +404,7 @@ const handleSalvarAgendamento = async ({ data, hora, descricao }) => {
     );
   }
 };
+
 
 
 
@@ -499,7 +515,7 @@ const finalizarLigacao = () => {
   // Aqui você pode salvar o tempo da ligação, se quiser
 };
 
-// Conversa2.jsx
+// Conversa.jsx
 const handleEnviarArquivo = async (e) => {
   const files = Array.from(e.target.files);
   if (!files.length) return;
@@ -554,6 +570,24 @@ const inserirFrasePronta = (texto) => {
   setMensagem((mensagemAtual) => (mensagemAtual ? mensagemAtual + " " : "") + textoPreenchido);
   setMostrarFrasesProntas(false);
 };
+
+useEffect(() => {
+  function handleNovaMensagem(data) {
+    console.log("🔔 Nova mensagem recebida via socket:", data);
+    // Se for do lead atual, atualiza a lista de mensagens
+    if (data.lead_id === leadId) {
+      setMensagens(mensagensAntigas => [...mensagensAntigas, data.mensagem]);
+    }
+  }
+
+  socket.on("mensagemRecebida", handleNovaMensagem);
+
+  // Limpeza ao desmontar
+  return () => {
+    socket.off("mensagemRecebida", handleNovaMensagem);
+  };
+}, [leadId]);
+
 
 useEffect(() => {
   // Mensagens normais
@@ -793,73 +827,11 @@ useEffect(() => {
 
   useEffect(() => {
     if (!leadId) return;
-  
-    // Limpa mensagens ao trocar de lead
     setMensagens([]);
-  
-    // Busca inicial das mensagens
-    const fetchMensagens = async () => {
-      // Recupera o usuário atual completo do localStorage
-      const usuarioAtual = JSON.parse(localStorage.getItem("usuario") || "{}");
-      let query = supabase
-        .from("mensagens")
-        .select("*")
-        .eq("lead_id", leadId)
-        .order("criado_em", { ascending: true });
-    
-      // Se não for superadmin, filtra também pelo revenda_id
-      if (usuarioAtual.tipo !== "superadmin") {
-        query = query.eq("revenda_id", usuarioAtual.revenda_id);
-        console.log("🟢 [fetchMensagens] Filtro por revenda_id:", usuarioAtual.revenda_id);
-      } else {
-        console.log("🔵 [fetchMensagens] Superadmin: sem filtro por revenda_id");
-      }
-    
-      const { data, error } = await query;
-    
-      console.log("🔵 Mensagens buscadas:", data, error);
-    
-      if (error) {
-        console.error("Erro ao buscar mensagens:", error);
-      } else {
-        setMensagens((prevMsgs) => {
-          // Remove mensagens duplicadas (por id)
-          const ids = new Set(prevMsgs.map((m) => m.id));
-          const novas = (data || []).filter((m) => !ids.has(m.id));
-          return [...prevMsgs, ...novas];
-        });
-      }
-    };
-    
     fetchMensagens();
-  
-    // Canal realtime: só adiciona mensagem se ainda não existe pelo id
-    const channel = supabase
-  .channel(`canal-mensagens-${leadId}`)
-  .on(
-    "postgres_changes",
-    {
-      event: "INSERT",
-      schema: "public",
-      table: "mensagens",
-      filter: `lead_id=eq.${leadId}`,
-    },
-    (payload) => {
-      setMensagens((old) => {
-        if (old.find((m) => m.id === payload.new.id)) return old;
-        return [...old, payload.new];
-      });
-    }
-  )
-  .subscribe();
-
-  
-    // Cleanup do canal
-    return () => {
-      channel.unsubscribe();
-      supabase.removeChannel(channel);
-    };
+  // (Por enquanto, não conecta realtime — depois podemos melhorar para usar socket)
   }, [leadId]);
+  
 
   useEffect(() => {
     if (!leadId) return;
@@ -968,45 +940,98 @@ useEffect(() => {
     buscarNomeVendedor();
   }, [lead?.vendedor_id]);
 
+  function formatarNumeroWhatsApp(telefone) {
+    let numero = (telefone || "").replace(/\D/g, "");
+  
+    // Já está internacional (12~15 dígitos, ex: 55119..., 598..., etc)
+    if (numero.length >= 12 && numero.length <= 15) {
+      return numero + "@c.us";
+    }
+    // Número brasileiro com 11 dígitos (celular)
+    if (numero.length === 11) {
+      return "55" + numero + "@c.us";
+    }
+    // Número brasileiro com 10 dígitos (fixo)
+    if (numero.length === 10) {
+      return "55" + numero + "@c.us";
+    }
+    // Não reconhecido
+    return null;
+  }
+  
+
   const handleEnviarMensagem = async (e) => {
     if (e) e.preventDefault();
     if (!mensagem.trim()) return;
   
-    // Recupera usuário do localStorage para garantir revenda_id atualizado
     const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
-  
-    if (!usuarioLocal) {
+    if (!usuarioLocal?.id) {
       console.error("Usuário logado não carregado ainda.");
+      alert("Usuário não está logado corretamente.");
       return;
     }
   
-    // 👇 Aqui é a alteração final
+    const numeroWhatsapp = formatarNumeroWhatsApp(lead?.telefone);
+if (!numeroWhatsapp) {
+  alert("Telefone do lead inválido para WhatsApp!");
+  return;
+}
+
     const mensagemComPlaceholders = preencherPlaceholders(mensagem, lead, nomeVendedor);
   
-    const novaMsg = {
+    console.log("🔵 [ENVIAR MSG] Enviando para backend:", {
+      para: numeroWhatsapp,
+      mensagem: mensagemComPlaceholders,
       lead_id: leadId,
-      mensagem: mensagemComPlaceholders.trim(),
-      canal,
-      remetente: usuarioLocal.nome,
-      remetente_id: usuarioLocal.id,
-      tipo: "texto",
-      revenda_id: usuarioLocal.revenda_id, // <-- ADICIONADO
-    };
+      client_id: lead?.client_id || null,
+      conversa_id: lead?.conversa_id || null
+    });
   
-    console.log("💬 Enviando mensagem:", novaMsg);
+    try {
+      const payload = {
+        para: numeroWhatsapp,
+        mensagem: mensagemComPlaceholders,
+        lead_id: leadId,
+        revenda_id: lead?.revenda_id,            // <-- essencial
+        vendedor_id: lead?.vendedor_id || null,  // <-- essencial
+        remetente_id: usuarioLocal.id,
+        remetente: usuarioLocal.nome,
+        remetente_nome: usuarioLocal.nome,
+        canal,                                  // já está definido (WhatsApp Cockpit, etc)
+        tipo: "texto",
+        direcao: "saida",                       // ou "entrada" conforme o fluxo
+        telefone_cliente: lead?.telefone || null,
+        lida: false,
+        
+      };
+      
+      const res = await fetch("http://localhost:5001/api/enviar-mensagem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      
   
-    const { data, error } = await supabase
-      .from("mensagens")
-      .insert([novaMsg])
-      .select();
+      const result = await res.json();
+      console.log("🟢 [ENVIAR MSG] Corpo da resposta:", result);
   
-    if (data && data.length > 0) {
-      setMensagens((prev) => [...prev, data[0]]);
-      setMensagem("");
-    } else {
-      console.error("Erro ao enviar mensagem:", error);
+      if (result.status === "ok") {
+        setMensagem(""); // limpa input
+        await fetchMensagens(); // atualiza histórico imediatamente
+        console.log("✅ Mensagem enviada e histórico atualizado.");
+      } else {
+        const erro = result.error || "Erro desconhecido.";
+        console.error("Erro ao enviar mensagem via API REST:", erro);
+        alert("Erro ao enviar mensagem: " + erro);
+      }
+    } catch (err) {
+      console.error("❌ Erro na requisição para API REST:", err);
+      alert("Erro ao enviar mensagem: " + (err.message || "erro desconhecido"));
     }
   };
+  
+
+  
   
   
   
@@ -2169,8 +2194,8 @@ console.log({
             <div className={styles["message-controls"]}>
               <label>Canal:</label>
               <select
-                value={canal || "WhatsApp Cockpit"}
-                onChange={(e) => setCanal(e.target.value)}
+                value={canalSelecionado}
+                onChange={e => setCanalSelecionado(e.target.value)}
                 className={styles["canal-select"]}
               >
                 <option value="WhatsApp Cockpit">WhatsApp Cockpit</option>
