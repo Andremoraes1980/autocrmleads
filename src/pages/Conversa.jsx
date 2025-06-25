@@ -623,17 +623,7 @@ useEffect(() => {
   };
 }, []);
 
-useEffect(() => {
-  setTimeline([
-    {
-      id: 1,
-      tipo: "mensagem",
-      data_hora: new Date().toISOString(),
-      autor_id: "id-teste",
-      detalhes: "Evento teste! Se aparecer, o render está OK.",
-    },
-  ]);
-}, []);
+
 
 
 
@@ -885,15 +875,24 @@ useEffect(() => {
     )
   `)
   .eq("id", leadId)
-  .single();
+  .maybeSingle(); // Troque single() por maybeSingle()
 
-    if (error) {
-      console.error("Erro ao buscar lead:", error.message);
-    } else {
-      setLead(data);
-      setTemp(data.temperatura || "frio");
-      setStatus(data.etapa || "Nova Proposta");
-    }
+if (error) {
+  console.error("Erro ao buscar lead:", error.message);
+  setLead(null);
+  setTemp("frio");
+  setStatus("Nova Proposta");
+} else if (!data) {
+  // Não encontrou nenhum lead
+  setLead(null);
+  setTemp("frio");
+  setStatus("Nova Proposta");
+} else {
+  setLead(data);
+  setTemp(data.temperatura || "frio");
+  setStatus(data.etapa || "Nova Proposta");
+}
+
   };
 
   fetchLead();
