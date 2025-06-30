@@ -123,7 +123,7 @@ async function lerEmailsDaRevenda(revenda) {
 if (data && data[0] && data[0].id) {
   const timelineRow = {
     lead_id: data[0].id,
-    tipo: 'info',
+    tipo: 'lead_recebido',
     conteudo: `🟢 ${data[0].nome} enviou um lead através do OLX.`,
     criado_em: new Date().toISOString(),
     usuario_id: null // ou o id do usuário responsável, se aplicável

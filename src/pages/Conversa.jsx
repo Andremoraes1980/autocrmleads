@@ -9,6 +9,352 @@ import { createPortal } from "react-dom";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import Timeline from "../components/Timeline";
+import { uploadFiles } from "../lib/fileUploader";
+import AudioRecorder from "../components/AudioRecorder"; // ajuste o path conforme seu projeto
+import BotaoIphone from '../components/BotaoIphone'; // ajuste o caminho conforme seu projeto
+
+
+
+
+
+
+
+/* === NOVO COMPONENTE REUSÁVEL PARA CADA BALÃO === */
+const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
+  const remetente   = mapaUsuarios[msg.remetente_id];
+  const nomeCliente = msg.remetente_nome || "";
+  const isCliente   = !remetente || !["vendedor","admin","gerente"].includes(remetente?.tipo);
+
+  return (
+    <div className={styles["conversa-message"]}>
+      {/* Inicial – cliente na ESQUERDA */}
+      {isCliente && (
+        <div className={styles["conversa-initials"]}>
+          {formatarNome(remetente?.nome || nomeCliente).slice(0,2)}
+        </div>
+      )}
+
+      <div
+        className={styles["conversa-bubble"]}
+        style={isCliente
+          ? { marginLeft:31, marginRight:16, width:"80%" }
+          : { marginLeft:16, marginRight:31, width:"80%" }}
+      >
+        <div className={styles["conversa-sender"]}>
+          {formatarNome(remetente?.nome || nomeCliente || "Cliente")}
+        </div>
+
+        {/* TEXTO */}
+        {msg.tipo === "texto" && <span>{msg.mensagem}</span>}
+
+        {/* IMAGEM */}
+        {/* Renderiza IMAGEM como miniatura */}
+{msg.tipo === "imagem" && msg.arquivo_url && (
+  <div
+    style={{
+      display: "inline-block",
+      position: "relative",
+      margin: "8px 0"
+    }}
+  >
+    <img
+      src={msg.arquivo_url}
+      alt={msg.nome_arquivo || "Imagem enviada"}
+      style={{
+        width: 90,
+        height: 90,
+        objectFit: "cover",
+        borderRadius: 7,
+        boxShadow: "0 1px 5px rgba(0,0,0,0.2)",
+        cursor: "pointer",
+      }}
+      onClick={() => window.open(msg.arquivo_url, "_blank")}
+      title="Clique para ver em tamanho real"
+    />
+    <a
+      href={msg.arquivo_url}
+      download={msg.nome_arquivo || "imagem"}
+      title="Baixar imagem"
+      style={{
+        position: "absolute",
+        right: 4,
+        bottom: 4,
+        background: "rgba(255,255,255,0.9)",
+        borderRadius: 4,
+        padding: "2px 6px",
+        fontSize: 12,
+        color: "#1976d2",
+        textDecoration: "none",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.2)",
+      }}
+    >
+      ⬇️
+    </a>
+  </div>
+)}
+
+
+        {/* VÍDEO */}
+        
+        {msg.tipo === "video" && msg.arquivo_url && (
+  <div style={{ textAlign: "center", padding: "6px 0" }}>
+    <video
+      controls
+      src={msg.arquivo_url}
+      poster={msg.arquivo_url + "?thumb=true"}  // opcional: seu backend pode gerar um thumbnail
+      style={{
+        width: 120,
+        height: 80,
+        objectFit: "cover",
+        borderRadius: 6,
+        display: "block",
+        margin: "4px auto",
+        boxShadow: "0 1px 4px rgba(0,0,0,0.1)"
+      }}
+    />
+    <a
+      href={msg.arquivo_url}
+      download={msg.nome_arquivo || "video.mp4"}
+      style={{
+        display: "inline-block",
+        marginTop: 2,
+        fontSize: 12,
+        textDecoration: "none",
+        color: "#1877f2"
+      }}
+    >
+      ⬇️ Baixar vídeo
+    </a>
+  </div>
+)}
+
+
+
+{/* Renderiza ÁUDIO */}
+
+  <>
+    {msg.arquivos && msg.arquivos.length > 0 && msg.arquivos.some(arquivo => arquivo.tipo === "audio") && (
+      <div style={{ textAlign: "center", padding: 4 }}>
+        {msg.arquivos
+          .filter(arquivo => arquivo.tipo === "audio")
+          .map((arquivo, idx) => (
+            <div
+              key={idx}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                marginBottom: 8
+              }}
+            >
+              <audio controls src={arquivo.url} style={{ width: 400 }} />
+              {/* Ícone de download */}
+              <a
+                href={arquivo.url}
+                download={arquivo.nome || "audio.ogg"}
+                style={{
+                  marginLeft: 8,
+                  display: "flex",
+                  alignItems: "center"
+                }}
+                title="Baixar áudio"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="#1877f2" viewBox="0 0 24 24">
+                  <path d="M12 16l6-6h-4V4h-4v6H6z"/><path d="M20 20H4v-2h16v2z"/>
+                </svg>
+              </a>
+              {/* Botão para enviar para iPhone */}
+              <BotaoIphone
+                enviado={!!enviadosIphone[arquivo.nome]}
+                onClick={async () => {
+                  try {
+                    const resposta = await fetch("http://localhost:5001/api/reenviar-arquivo", {
+                      method: "POST",
+                      headers: { "Content-Type": "application/json" },
+                      body: JSON.stringify({ mensagemId: msg.id }),
+                    });
+                    const json = await resposta.json();
+                    if (json.status === "ok") {
+                      setEnviadosIphone(prev => ({
+                        ...prev,
+                        [arquivo.nome]: true
+                      }));
+                    } else {
+                      alert("Falha ao reenviar áudio para iPhone: " + (json.error || "Erro desconhecido"));
+                    }
+                  } catch (err) {
+                    alert("Erro ao conectar ao backend: " + err.message);
+                  }
+                }}
+              />
+            </div>
+          ))}
+        <div style={{ fontSize: 10, color: "#999" }}>
+          Em alguns dispositivos iPhone pode ser necessário baixar o áudio para ouvir.
+        </div>
+      </div>
+    )}
+  </>
+);
+
+
+
+
+
+
+
+
+        {/* MULTI-ARQUIVO  */}
+        {msg.tipo === "multiarquivo" && Array.isArray(msg.arquivos) && (
+  (() => {
+    const imagens = msg.arquivos.filter(a => a.tipo === "imagem");
+    const outros = msg.arquivos.filter(a => a.tipo !== "imagem");
+
+    // ⚠️ Não renderiza nada se não tiver imagens nem outros arquivos
+    if (imagens.length === 0 && outros.length === 0) return null;
+
+    return (
+      <>
+        {/* 1️⃣ Contador + botão “Baixar todas” */}
+        {imagens.length > 0 && (
+          <>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
+              <span style={{ fontSize: 13, color: "#999" }}>
+                {imagens.length} imagem{imagens.length > 1 ? "s" : ""}
+              </span>
+              <button
+                type="button"
+                onClick={() => baixarTodasImagens(imagens, "grupo" + msg.id)}
+                style={{
+                  background: "#1877f2",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 5,
+                  padding: "4px 10px",
+                  fontSize: 13,
+                  cursor: "pointer",
+                }}
+                title="Baixar todas as imagens"
+              >
+                ⬇️ Baixar todas
+              </button>
+            </div>
+            {/* 2️⃣ Grid de miniaturas */}
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                justifyContent: imagens.length === 1 ? "center" : "flex-start",
+                marginBottom: 6,
+              }}
+            >
+              {imagens.map((arq, idx) => (
+                <div key={idx} style={{ position: "relative" }}>
+                  <img
+                    src={arq.url}
+                    alt={arq.nome}
+                    style={{
+                      width: 90,
+                      height: 90,
+                      objectFit: "cover",
+                      borderRadius: 7,
+                      boxShadow: "0 1px 5px #0002",
+                      border: "1.5px solid #e7e7e7",
+                      cursor: "pointer",
+                    }}
+                    title={arq.nome}
+                  />
+                  <a
+                    href={arq.url}
+                    download={arq.nome}
+                    title="Baixar imagem"
+                    style={{
+                      position: "absolute",
+                      right: 4,
+                      bottom: 4,
+                      background: "#fff9",
+                      borderRadius: 5,
+                      padding: "2px 6px",
+                      fontSize: 13,
+                      color: "#1976d2",
+                      textDecoration: "none",
+                      boxShadow: "0 0 2px #0001",
+                    }}
+                  >
+                    ⬇️
+                  </a>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+
+        {/* 3️⃣ Renderização dos demais tipos de arquivo */}
+        {outros.map((arq, idx) => (
+          <div key={idx} style={{ marginBottom: 6 }}>
+            {arq.tipo === "video" && (
+              <>
+                <video
+                  src={arq.url}
+                  controls
+                  style={{ maxWidth: 220, borderRadius: 8, display: "block" }}
+                />
+                <a
+                  href={arq.url}
+                  download={arq.nome}
+                  style={{
+                    marginLeft: 8,
+                    color: "#1877f2",
+                    fontSize: 13,
+                    textDecoration: "none",
+                  }}
+                >
+                  ⬇️ Baixar
+                </a>
+              </>
+            )}
+            {arq.tipo === "arquivo" && (
+              <a
+                href={arq.url}
+                download={arq.nome}
+                style={{
+                  color: "#1976d2",
+                  textDecoration: "underline",
+                  fontSize: 15,
+                  marginLeft: 2,
+                }}
+              >
+                📎 {arq.nome}
+              </a>
+            )}
+          </div>
+        ))}
+      </>
+    );
+  })()
+)}
+
+
+
+       
+
+        <div className={styles["conversa-time"]}>
+          {new Date(msg.criado_em).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}
+        </div>
+      </div>
+
+      {/* Inicial – usuário interno na DIREITA */}
+      {!isCliente && (
+        <div className={styles["conversa-initials"]}>
+          {formatarNome(remetente?.nome || nomeCliente).charAt(0)}
+        </div>
+      )}
+    </div>
+  );
+};
+/* === FIM DO NOVO COMPONENTE === */
+
 
 
 function ModalNotaLigacao({ open, onClose, onSave, tempo }) {
@@ -206,6 +552,7 @@ function ModalNota({ open, onClose, onSave }) {
   );
 }
 
+
 function statusFormat(etapa) {
   if (!etapa) return "Desconhecido";
   // Remove acentos e transforma em minúsculo/sem espaço
@@ -220,6 +567,8 @@ function statusFormat(etapa) {
   };
   return mapa[key] || etapa;
 }
+
+
 
 
 
@@ -248,6 +597,10 @@ function preencherPlaceholders(texto, lead, nomeVendedor) {
     .replaceAll("{nome_loja}", nomeLoja)
     .replaceAll("{telefone_vendedor}", telefoneVendedor);
 }
+
+
+
+
 
 
 
@@ -348,7 +701,9 @@ const [mostrarSeta, setMostrarSeta] = useState(false);
 const [mostrarFrasesProntas, setMostrarFrasesProntas] = useState(false);
 const [frasesProntas, setFrasesProntas] = useState([]);
 const [canalSelecionado, setCanalSelecionado] = useState("WhatsApp Cockpit");
-
+const [audioParaEnviar, setAudioParaEnviar] = useState(null);
+const [enviado, setEnviado] = useState(false);
+const [enviadosIphone, setEnviadosIphone] = useState({});
 
 
 
@@ -357,6 +712,7 @@ const fetchMensagens = async () => {
   try {
     const res = await fetch(`http://localhost:5001/api/mensagens/${leadId}`);
     const data = await res.json();
+    console.log("🟢 Mensagens recebidas do back:", data);
     setMensagens(data || []);
     console.log("🟢 Mensagens buscadas via API REST:", data);
   } catch (err) {
@@ -364,6 +720,9 @@ const fetchMensagens = async () => {
   }
 };
 
+const handleGravarAudio = () => {
+  alert("Botão de áudio clicado!");
+};
 
 const handleSalvarAgendamento = async ({ data, hora, descricao }) => {
   const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
@@ -518,52 +877,61 @@ const finalizarLigacao = () => {
 // Conversa.jsx
 const handleEnviarArquivo = async (e) => {
   const files = Array.from(e.target.files);
-  if (!files.length) return;
+  console.log("🟢 Arquivos selecionados:", files);
 
-  if (!usuarioAtual?.id) {
-    alert("Usuário não autenticado!");
+  if (!files.length) {
+    console.warn("⚠️ Nenhum arquivo selecionado");
     return;
   }
+  
+    console.log("📎 Clique no botão de anexo detectado");
+    console.log("📤 Enviando arquivos:", files);
 
-  // 1. Faz upload de todos os arquivos e monta o array:
-  const arquivos = [];
-  for (const file of files) {
-    const { data, error } = await supabase.storage
-      .from("mensagens-arquivos")
-      .upload(`user_${usuarioAtual.id}/${Date.now()}_${file.name}`, file);
-
-    if (error || !data) {
-      alert("Erro ao enviar arquivo: " + (error?.message || "Desconhecido"));
-      continue;
+    if (!usuarioAtual?.id) {
+      alert("Usuário não autenticado!");
+      return;
     }
 
-    const { data: urlData } = supabase.storage
-      .from("mensagens-arquivos")
-      .getPublicUrl(data.path);
-
-    let tipo = "arquivo";
-    if (file.type.startsWith("image/")) tipo = "imagem";
-    else if (file.type.startsWith("video/")) tipo = "video";
-
-    arquivos.push({
-      url: urlData.publicUrl,
-      nome: file.name,
-      tipo
+     // Log antes do upload
+  console.log("🔄 Iniciando upload via helper uploadFiles...");
+  const arquivos = await uploadFiles(files, usuarioAtual.id);
+  console.log("✅ Arquivos retornados pelo uploadFiles:", arquivos);
+  
+    if (!arquivos.length) {
+      console.error("❌ Falha ao subir arquivos");
+      return;
+    }
+    
+    // Chama o endpoint do backend para enviar pelo WhatsApp + registrar histórico
+  try {
+    console.log("🟡 Chamando endpoint /api/enviar-midia...", {
+      telefone: lead.telefone,
+      arquivos,
+      lead_id: lead.id,
+      remetente_id: usuarioAtual.id,
+      remetente: usuarioAtual.nome,
     });
+
+    await fetch("http://localhost:5001/api/enviar-midia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        telefone: lead.telefone, // ou como está disponível na sua tela
+        arquivos,
+        lead_id: lead.id,
+        remetente_id: usuarioAtual.id,
+        remetente: usuarioAtual.nome,
+      }),
+    });
+
+    console.log("✅ Mídia enviada e registrada!");
+    e.target.value = "";
+    fetchMensagens();
+  } catch (err) {
+    console.error("❌ Erro ao enviar mídia:", err);
   }
-
-  if (arquivos.length === 0) return;
-
-  // 2. Insere uma ÚNICA mensagem com todos os arquivos
-  await supabase.from("mensagens").insert([{
-    lead_id: leadId,
-    remetente: usuarioAtual.nome,
-    remetente_id: usuarioAtual.id,
-    tipo: "multiarquivo",
-    arquivos, // <-- lista com todos
-    mensagem: ""
-  }]);
 };
+
 
 const inserirFrasePronta = (texto) => {
   const textoPreenchido = preencherPlaceholders(texto, lead, nomeVendedor);
@@ -961,80 +1329,118 @@ if (error) {
 
   const handleEnviarMensagem = async (e) => {
     if (e) e.preventDefault();
+  
+    if (audioParaEnviar) {
+      const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
+      if (!usuarioLocal?.id) {
+        alert("Usuário não está logado corretamente.");
+        return;
+      }
+    
+      // Para o Supabase, converte o blob em File (com nome e tipo)
+      const file = new File([audioParaEnviar], `audio-${Date.now()}.webm`, { type: "audio/webm" });
+    
+      let arquivos;
+      try {
+        arquivos = await uploadFiles([file], usuarioLocal.id);
+        // arquivos = [{ url, nome, tipo: "audio" }]
+      } catch (err) {
+        alert("Erro ao subir áudio: " + err.message);
+        return;
+      }
+    
+      // Monta o payload igual ao envio de mídia normal
+      const payload = {
+        telefone: formatarNumeroWhatsApp(lead?.telefone),
+        arquivos, // Array de arquivos já no padrão
+        lead_id: leadId,
+        revenda_id: lead?.revenda_id,
+        vendedor_id: lead?.vendedor_id || null,
+        remetente_id: usuarioLocal.id,
+        remetente: usuarioLocal.nome,
+        remetente_nome: usuarioLocal.nome,
+        canal,
+        tipo: "audio",
+        direcao: "saida",
+        telefone_cliente: lead?.telefone || null,
+        lida: false,
+      };
+    
+      try {
+        const res = await fetch("http://localhost:5001/api/enviar-midia", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const result = await res.json();
+        if (result.status === "ok") {
+          setAudioParaEnviar(null);
+          setMensagem("");
+          await fetchMensagens();
+          return; // SAI após enviar áudio!
+        } else {
+          const erro = result.error || "Erro desconhecido.";
+          alert("Erro ao enviar áudio: " + erro);
+          return;
+        }
+      } catch (err) {
+        alert("Erro ao enviar áudio: " + (err.message || "erro desconhecido"));
+        return;
+      }
+    }
+    
+  
+    // 2️⃣ Se NÃO houver áudio, segue fluxo de texto normal:
     if (!mensagem.trim()) return;
   
     const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
     if (!usuarioLocal?.id) {
-      console.error("Usuário logado não carregado ainda.");
       alert("Usuário não está logado corretamente.");
       return;
     }
   
     const numeroWhatsapp = formatarNumeroWhatsApp(lead?.telefone);
-if (!numeroWhatsapp) {
-  alert("Telefone do lead inválido para WhatsApp!");
-  return;
-}
-
+    if (!numeroWhatsapp) {
+      alert("Telefone do lead inválido para WhatsApp!");
+      return;
+    }
+  
     const mensagemComPlaceholders = preencherPlaceholders(mensagem, lead, nomeVendedor);
   
-    console.log("🔵 [ENVIAR MSG] Enviando para backend:", {
+    const payload = {
       para: numeroWhatsapp,
       mensagem: mensagemComPlaceholders,
       lead_id: leadId,
-      client_id: lead?.client_id || null,
-      conversa_id: lead?.conversa_id || null
-    });
+      revenda_id: lead?.revenda_id,
+      vendedor_id: lead?.vendedor_id || null,
+      remetente_id: usuarioLocal.id,
+      remetente: usuarioLocal.nome,
+      remetente_nome: usuarioLocal.nome,
+      canal,
+      tipo: "texto",
+      direcao: "saida",
+      telefone_cliente: lead?.telefone || null,
+      lida: false,
+    };
   
     try {
-      const payload = {
-        para: numeroWhatsapp,
-        mensagem: mensagemComPlaceholders,
-        lead_id: leadId,
-        revenda_id: lead?.revenda_id,            // <-- essencial
-        vendedor_id: lead?.vendedor_id || null,  // <-- essencial
-        remetente_id: usuarioLocal.id,
-        remetente: usuarioLocal.nome,
-        remetente_nome: usuarioLocal.nome,
-        canal,                                  // já está definido (WhatsApp Cockpit, etc)
-        tipo: "texto",
-        direcao: "saida",                       // ou "entrada" conforme o fluxo
-        telefone_cliente: lead?.telefone || null,
-        lida: false,
-        
-      };
-      
       const res = await fetch("http://localhost:5001/api/enviar-mensagem", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      
-  
       const result = await res.json();
-      console.log("🟢 [ENVIAR MSG] Corpo da resposta:", result);
-  
       if (result.status === "ok") {
         setMensagem(""); // limpa input
         await fetchMensagens(); // atualiza histórico imediatamente
-        console.log("✅ Mensagem enviada e histórico atualizado.");
       } else {
         const erro = result.error || "Erro desconhecido.";
-        console.error("Erro ao enviar mensagem via API REST:", erro);
         alert("Erro ao enviar mensagem: " + erro);
       }
     } catch (err) {
-      console.error("❌ Erro na requisição para API REST:", err);
       alert("Erro ao enviar mensagem: " + (err.message || "erro desconhecido"));
     }
-  };
-  
-
-  
-  
-  
-  
-  
+  };  
   
 
   const handleToggleTemp = async () => {
@@ -1050,12 +1456,14 @@ if (!numeroWhatsapp) {
     if (error) console.error("Erro ao atualizar temperatura:", error);
   };
 
-  const handleAnexarArquivos = () => {
-    const input = document.createElement("input");
-    input.type = "file";
-    input.onchange = () => alert("📎 Arquivo: " + input.files[0].name);
-    input.click();
-  };
+  //Aciona o input oculto que já existe na UI
+
+const handleAnexarArquivos = () => {
+const hiddenInput = document.getElementById("anexo-arquivo");
+
+  if (hiddenInput) hiddenInput.click();
+  console.log("📎 Clique no botão de anexo detectado");
+};
 
   const mapaUsuarios = {};
 [...(usuarios || [])].forEach(u => {
@@ -1082,293 +1490,10 @@ const baixarTodasImagens = async (imagens, groupId = "") => {
 
 
 const renderMensagens = () =>
-mensagens.map((msg) => {
-  const remetente = mapaUsuarios[msg.remetente_id];
-// Considere como "cliente" todo usuário que NÃO for vendedor, admin ou gerente
-const isCliente = !["vendedor", "admin", "gerente"].includes(remetente?.tipo);
-console.log({
-  msg: msg.mensagem,
-  remetente: remetente?.nome,
-  tipo: remetente?.tipo,
-  isCliente,
-});
-
-
-  return (
-    <div
-    key={msg.id}
-    className={styles["conversa-message"]}
-  >
-    {/* Inicial à ESQUERDA SÓ se for cliente */}
-    {isCliente && (
-      <div className={styles["conversa-initials"]}>
-        {formatarNome(remetente?.nome || "").charAt(0)}
-      </div>
-    )}
-  
-  <div
-  className={styles["conversa-bubble"]}
-  style={
-    isCliente
-      ? { marginLeft: "31px", marginRight: "16px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-      : { marginLeft: "16px", marginRight: "31px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-  }
->
-
-    
-<div className={styles["conversa-sender"]}>
-  {formatarNome(remetente?.nome || "")}
-</div>
-
-
-
-            {/* Renderiza mensagem de TEXTO */}
-            {msg.tipo === "texto" && (
-        <span>{msg.mensagem}</span>
-      )}
-
-      {/* Renderiza IMAGEM */}
-      {msg.tipo === "imagem" && msg.arquivo_url && (
-  <div style={{ textAlign: "center", padding: "4px 0" }}>
-    <img
-      src={msg.arquivo_url}
-      alt={msg.nome_arquivo || "Imagem enviada"}
-      style={{
-        maxWidth: "180px",
-        borderRadius: 8,
-        margin: "8px 0",
-        boxShadow: "0 2px 8px #0001",
-        display: "block",
-        marginLeft: "auto",
-        marginRight: "auto",
-      }}
-    />
-    <div style={{ marginTop: 2 }}>
-      {msg.nome_arquivo && (
-        <span style={{ fontSize: 12, color: "#666" }}>{msg.nome_arquivo}</span>
-      )}
-      <a
-        href={msg.arquivo_url}
-        download={msg.nome_arquivo || "imagem"}
-        style={{
-          marginLeft: 12,
-          color: "#1877f2",
-          textDecoration: "none",
-          fontSize: 13,
-          fontWeight: 500,
-          border: "1px solid #eee",
-          borderRadius: 6,
-          padding: "2px 9px",
-          background: "#f8f9fa",
-          transition: "background .2s",
-        }}
-        title="Baixar imagem"
-      >
-        ⬇️ Baixar
-      </a>
-    </div>
-  </div>
-)}
-
-{msg.tipo === "video" && msg.arquivo_url && (
-  <div style={{ textAlign: "center", padding: "4px 0" }}>
-    <video
-      controls
-      src={msg.arquivo_url}
-      style={{
-        maxWidth: "220px",
-        borderRadius: 8,
-        margin: "8px 0",
-        boxShadow: "0 2px 8px #0001",
-        display: "block",
-        marginLeft: "auto",
-        marginRight: "auto",
-      }}
-    />
-    <div style={{ marginTop: 2 }}>
-      {msg.nome_arquivo && (
-        <span style={{ fontSize: 12, color: "#666" }}>{msg.nome_arquivo}</span>
-      )}
-      <a
-        href={msg.arquivo_url}
-        download={msg.nome_arquivo || "video"}
-        style={{
-          marginLeft: 12,
-          color: "#1877f2",
-          textDecoration: "none",
-          fontSize: 13,
-          fontWeight: 500,
-          border: "1px solid #eee",
-          borderRadius: 6,
-          padding: "2px 9px",
-          background: "#f8f9fa",
-          transition: "background .2s",
-        }}
-        title="Baixar vídeo"
-      >
-        ⬇️ Baixar
-      </a>
-    </div>
-  </div>
-)}
-
-{msg.tipo === "multiarquivo" && Array.isArray(msg.arquivos) && (
-  (() => {
-    const imagens = msg.arquivos.filter(a => a.tipo === "imagem");
-    const outros = msg.arquivos.filter(a => a.tipo !== "imagem");
-    return (
-      <>
-        {/* Botão BAIXAR TODAS */}
-        {imagens.length > 0 && (
-          <>
-            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-              <span style={{ fontSize: 13, color: "#999" }}>
-                {imagens.length} imagem{imagens.length > 1 ? "s" : ""}
-              </span>
-              <button
-                type="button"
-                onClick={() => baixarTodasImagens(imagens, "grupo" + msg.id)}
-                style={{
-                  background: "#1877f2",
-                  color: "#fff",
-                  border: "none",
-                  borderRadius: 5,
-                  padding: "4px 10px",
-                  fontSize: 13,
-                  cursor: "pointer",
-                }}
-                title="Baixar todas as imagens"
-              >
-                ⬇️ Baixar todas
-              </button>
-            </div>
-            {/* GRID DE MINIATURAS */}
-            <div
-              style={{
-                display: "flex",
-                gap: 8,
-                flexWrap: "wrap",
-                justifyContent: imagens.length === 1 ? "center" : "flex-start",
-                marginBottom: 6,
-              }}
-            >
-              {imagens.map((arq, idx) => (
-                <div key={arq.url || idx} style={{ position: "relative" }}>
-                  <img
-                    src={arq.url}
-                    alt={arq.nome}
-                    style={{
-                      width: 90,
-                      height: 90,
-                      objectFit: "cover",
-                      borderRadius: 7,
-                      boxShadow: "0 1px 5px #0002",
-                      border: "1.5px solid #e7e7e7",
-                      cursor: "pointer",
-                    }}
-                    title={arq.nome}
-                  />
-                  <a
-                    href={arq.url}
-                    download={arq.nome}
-                    title="Baixar imagem"
-                    style={{
-                      position: "absolute",
-                      right: 4,
-                      bottom: 4,
-                      background: "#fff9",
-                      borderRadius: 5,
-                      padding: "2px 6px",
-                      fontSize: 13,
-                      color: "#1976d2",
-                      textDecoration: "none",
-                      boxShadow: "0 0 2px #0001",
-                    }}
-                  >⬇️</a>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-
-        {/* Outros tipos ficam em coluna */}
-        {outros.map((arq, idx) => (
-          <div key={arq.url || idx} style={{ marginBottom: 6 }}>
-            {arq.tipo === "video" && (
-              <>
-                <video
-                  src={arq.url}
-                  controls
-                  style={{ maxWidth: 220, borderRadius: 8, display: "block" }}
-                />
-                <a
-                  href={arq.url}
-                  download={arq.nome}
-                  style={{
-                    marginLeft: 8,
-                    color: "#1877f2",
-                    fontSize: 13,
-                    textDecoration: "none",
-                  }}
-                >⬇️ Baixar</a>
-              </>
-            )}
-            {arq.tipo === "arquivo" && (
-              <a
-                href={arq.url}
-                download={arq.nome}
-                style={{
-                  color: "#1976d2",
-                  textDecoration: "underline",
-                  fontSize: 15,
-                  marginLeft: 2,
-                }}
-              >📎 {arq.nome}</a>
-            )}
-          </div>
-        ))}
-      </>
-    );
-  })()
-)}
-
-
-
-
-      {/* Renderiza ARQUIVO (outros tipos) */}
-      {msg.tipo === "arquivo" && msg.arquivo_url && (
-        <div>
-          <a
-            href={msg.arquivo_url}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ color: "#1877f2", textDecoration: "underline" }}
-          >
-            📎 {msg.nome_arquivo || "Arquivo enviado"}
-          </a>
-        </div>
-      )}
-
-      <div className={styles["conversa-time"]}>
-        {new Date(msg.criado_em).toLocaleTimeString([], {
-          hour: "2-digit",
-          minute: "2-digit",
-        })}
-      </div>
-    </div>
-
-    
-  
-    {/* Inicial à DIREITA SE NÃO for cliente */}
-    {!isCliente && (
-      <div className={styles["conversa-initials"]}>
-        {formatarNome(remetente?.nome || "").charAt(0)}
-      </div>
-    )}
-  </div>
-  
-  );
-});
+  mensagens.map((msg) => (
+    <Bubble key={msg.id} msg={msg} mapaUsuarios={mapaUsuarios} enviadosIphone={enviadosIphone}
+    setEnviadosIphone={setEnviadosIphone} />
+  ));
 
   if (!lead) return <div>Carregando lead...</div>;
   console.log("HISTORICO QUE VAI PARA O MAP:", historico);
@@ -1749,44 +1874,11 @@ console.log({
       )}
 
       {/* 3. MENSAGEM */}
-      {item.tipo_evento === "mensagem" && (() => {
-        const remetente = mapaUsuarios[item.remetente_id];
-        const isCliente = !["vendedor", "admin", "gerente"].includes(remetente?.tipo);
+      {item.tipo_evento === "mensagem" && (
+  <Bubble msg={item} mapaUsuarios={mapaUsuarios} enviadosIphone={enviadosIphone}
+  setEnviadosIphone={setEnviadosIphone} />
+)}
 
-        return (
-          <div className={styles["conversa-message"]}>
-            {isCliente && (
-              <div className={styles["conversa-initials"]}>
-                {formatarNome(remetente?.nome || "").charAt(0)}
-              </div>
-            )}
-            <div
-              className={styles["conversa-bubble"]}
-              style={
-                isCliente
-                  ? { marginLeft: "31px", marginRight: "16px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-                  : { marginLeft: "16px", marginRight: "31px", width: "80%", minWidth: "180px", maxWidth: "80%" }
-              }
-            >
-              <div className={styles["conversa-sender"]}>
-                {formatarNome(remetente?.nome || "")}
-              </div>
-              <span>{item.mensagem}</span>
-              <div className={styles["conversa-time"]}>
-                {new Date(item.criado_em).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })}
-              </div>
-            </div>
-            {!isCliente && (
-              <div className={styles["conversa-initials"]}>
-                {formatarNome(remetente?.nome || "").charAt(0)}
-              </div>
-            )}
-          </div>
-        );
-      })()}
 
       {/* 4. EVENTO DE ANOTAÇÃO, AGENDAMENTO, TROCA VENDEDOR, STATUS */}
       {item.tipo_evento === "timeline" && (() => {
@@ -2119,7 +2211,8 @@ console.log({
         {expanded && (
           <div className={styles["message-tools"]}>
             <div>
-            <a onClick={handleAnexarArquivos}>📎 Anexar arquivos</a> &nbsp;
+            
+
 
 <button
   type="button"
@@ -2201,37 +2294,40 @@ console.log({
                 <option value="Chat Interno">Chat Interno</option>
                 <option value="Email">Email</option>
               </select>
-              <div className="chat-footer">
-  {/* ...outros botões/mensagens... */}
-  <label htmlFor="anexo-arquivo" style={{ cursor: "pointer" }}>
-  <input
-  type="file"
-  id="anexo-arquivo"
-  style={{ display: "none" }}
-  accept="image/*,video/*,application/pdf,.doc,.docx"
-  multiple
-  onChange={handleEnviarArquivo}
-/>
+              <div className="chat-footer" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <label htmlFor="anexo-arquivo" style={{ cursor: "pointer", display: "flex", alignItems: "center" }}>
+  <span
+    title="Anexar arquivo"
+    style={{ fontSize: 22, verticalAlign: "middle" }}
+  >
+    📎
+  </span>
 
-    <span
-      title="Anexar arquivo"
-      style={{ cursor: "pointer", fontSize: 22, verticalAlign: "middle" }}
-    >
-      📎
-    </span>
-  </label>
-  {/* ...outros botões/mensagens... */}
+  <input
+    type="file"
+    id="anexo-arquivo"
+    style={{ display: "none" }}
+    accept="image/*,video/*,audio/*,application/pdf,.doc,.docx"
+    multiple
+    onChange={handleEnviarArquivo}
+  />
+</label>
+
+<AudioRecorder onAudioReady={setAudioParaEnviar} />
+
+
 </div>
 
 
-<button onClick={handleEnviarMensagem}>Enviar</button>
 
-              
+<button onClick={handleEnviarMensagem}>Enviar</button>     
 
             </div>
           </div>
         )}
       </div>
+
+
       <ModalAgenda
   open={modalAgendaOpen}
   onClose={() => setModalAgendaOpen(false)}
