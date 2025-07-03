@@ -1515,21 +1515,29 @@ useEffect(() => {
       
         // NOVO: dispara automação de status no backend CRM
         try {
-          await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              lead_id: leadId,
-              tipo: "texto", // ou "audio"/"imagem" se for o caso
-              direcao: "saida",
-              usuario_id: usuarioAtual?.id || null,
-              conteudo: mensagem, // ou mensagemComPlaceholders se preferir
-            }),
-          });
-          // Não precisa tratar resposta aqui, apenas dispara
-        } catch (err) {
-          console.error("❌ Erro ao acionar automação backend:", err);
-        }
+  console.log("🚀 Disparando automação evento-mensagem:", {
+    lead_id: leadId,
+    tipo: "texto",
+    direcao: "saida",
+    usuario_id: usuarioAtual?.id || null,
+    conteudo: mensagem,
+  });
+
+  await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lead_id: leadId,
+      tipo: "texto", // ou "audio"/"imagem" se for o caso
+      direcao: "saida",
+      usuario_id: usuarioAtual?.id || null,
+      conteudo: mensagem, // ou mensagemComPlaceholders se preferir
+    }),
+  });
+} catch (err) {
+  console.error("❌ Erro ao acionar automação backend:", err);
+}
+
       }
       
             
