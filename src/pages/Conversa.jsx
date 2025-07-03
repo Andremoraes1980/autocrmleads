@@ -1742,7 +1742,7 @@ const renderMensagens = () =>
   }}
 >
   <option value="nova_proposta">Nova Proposta</option>
-  <option value="nao_respondidos">Não Respondidos</option>
+  <option value="nao_respondido">Não Respondidos</option>
   <option value="visita_agendada">Visita Agendada</option>
   <option value="negociacao">Negociação</option>
   <option value="sem_contato">Sem Contato</option>
