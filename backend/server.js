@@ -173,14 +173,14 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
       precisaAtualizar = true;
       descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
     } else if (lead.etapa === "nao_respondido" && direcao === "saida") {
-      novaEtapa = "em_negociacao";
+      novaEtapa = "negociacao";
       precisaAtualizar = true;
       descricaoEvento = "Usuário respondeu: movido para Em Negociação";
-    } else if (lead.etapa === "em_negociacao" && direcao === "entrada") {
+    } else if (lead.etapa === "negociacao" && direcao === "entrada") {
       novaEtapa = "nao_respondido";
       precisaAtualizar = true;
       descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
-    } else if (lead.etapa === "em_negociacao" && direcao === "saida") {
+    } else if (lead.etapa === "negociacao" && direcao === "saida") {
       // Permanece em negociação
       descricaoEvento = "Usuário respondeu: permanece Em Negociação";
     }
