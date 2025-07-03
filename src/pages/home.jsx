@@ -299,6 +299,19 @@ setUsuarioAtual({
     }
   }, [usuarioAtual, vendedoresLista]);
 
+  useEffect(() => {
+    const handleFocus = () => {
+      // Sempre que a Home ganha foco (ex: volta da conversa), refaz busca dos leads
+      buscarLeads();
+    };
+  
+    window.addEventListener("focus", handleFocus);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+  
+
   const buscarLeads = async () => {
     setLoading(true);
 

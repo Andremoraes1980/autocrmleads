@@ -42,6 +42,8 @@ app.post('/api/ml-webhook', (req, res) => {
   res.sendStatus(200);
 });
 
+
+
 // === AJUSTADO: Webmotors Leads - salva no Supabase ===
 app.post('/api/webmotors-leads', async (req, res) => {
   console.log("🚗 Lead recebido da Webmotors:", req.body);
@@ -129,6 +131,89 @@ app.post('/api/ml-auth', async (req, res) => {
     return res.status(500).json({ message: "Erro ao autenticar com Mercado Livre." });
   }
 });
+
+// === NOVA ROTA: Automação de status de leads ===
+
+app.post('/api/evento-mensagem', async (req, res) => {
+  // No início da rota /api/evento-mensagem:
+console.log("🔥 Evento de mensagem recebido:", req.body);
+
+  try {
+    const { lead_id, tipo, direcao, usuario_id, conteudo } = req.body;
+    // tipo: "texto", "audio", "imagem", etc.
+    // direcao: "entrada" (cliente) | "saida" (usuário do sistema)
+    // usuario_id: quem enviou (pode ser null se cliente)
+    // conteudo: texto da mensagem (opcional)
+    if (!lead_id || !tipo || !direcao) {
+      return res.status(400).json({ error: 'lead_id, tipo e direcao são obrigatórios' });
+    }
+
+    // Busca o lead atual
+    const { data: lead, error: leadError } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('id', lead_id)
+      .single();
+
+    if (leadError || !lead) {
+      return res.status(404).json({ error: 'Lead não encontrado' });
+    }
+
+    // Determina próxima etapa conforme regras do funil
+    let novaEtapa = lead.etapa;
+    let precisaAtualizar = false;
+    let descricaoEvento = "";
+
+    if (lead.etapa === "nova_proposta" && direcao === "saida") {
+      novaEtapa = "sem_contato";
+      precisaAtualizar = true;
+      descricaoEvento = "Mensagem enviada (auto ou manual): movido para Sem Contato";
+    } else if (lead.etapa === "sem_contato" && direcao === "entrada") {
+      novaEtapa = "sem_resposta";
+      precisaAtualizar = true;
+      descricaoEvento = "Cliente respondeu: movido para Sem Resposta";
+    } else if (lead.etapa === "sem_resposta" && direcao === "saida") {
+      novaEtapa = "em_negociacao";
+      precisaAtualizar = true;
+      descricaoEvento = "Usuário respondeu: movido para Em Negociação";
+    } else if (lead.etapa === "em_negociacao" && direcao === "entrada") {
+      novaEtapa = "sem_resposta";
+      precisaAtualizar = true;
+      descricaoEvento = "Cliente respondeu: movido para Sem Resposta";
+    } else if (lead.etapa === "em_negociacao" && direcao === "saida") {
+      // Permanece em negociação
+      descricaoEvento = "Usuário respondeu: permanece Em Negociação";
+    }
+
+    // Atualiza etapa do lead se necessário
+    if (precisaAtualizar && novaEtapa !== lead.etapa) {
+      await supabase
+        .from('leads')
+        .update({ etapa: novaEtapa })
+        .eq('id', lead_id);
+    }
+
+    // Sempre registra no timeline
+    const eventoTimeline = {
+      lead_id,
+      tipo: "etapa_automatica",
+      usuario_id: usuario_id || null,
+      criado_em: new Date().toISOString(),
+      conteudo: descricaoEvento || "Evento de mensagem",
+      etapa_nova: novaEtapa,
+      etapa_anterior: lead.etapa,
+      texto_mensagem: conteudo || "",
+    };
+
+    await supabase.from('timeline').insert([eventoTimeline]);
+
+    return res.json({ status: "ok", novaEtapa, timeline: eventoTimeline });
+  } catch (err) {
+    console.error("Erro no endpoint /api/evento-mensagem:", err);
+    return res.status(500).json({ error: err.message });
+  }
+});
+
 
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;

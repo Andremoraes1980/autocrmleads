@@ -11,11 +11,9 @@ import { saveAs } from "file-saver";
 import Timeline from "../components/Timeline";
 import { uploadFiles } from "../lib/fileUploader";
 import AudioRecorder from "../components/AudioRecorder"; // ajuste o path conforme seu projeto
-import BotaoIphone from '../components/BotaoIphone'; // ajuste o caminho conforme seu projeto
-
-
-
-
+import BotaoReenvioAudioLottie from "../components/BotaoReenvioAudioLottie";
+import BackButton from "../components/ui/BackButton";
+import { useNavigate } from "react-router-dom";
 
 
 
@@ -26,14 +24,15 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
   const isCliente   = !remetente || !["vendedor","admin","gerente"].includes(remetente?.tipo);
 
   return (
+    
     <div className={styles["conversa-message"]}>
-      {/* Inicial – cliente na ESQUERDA */}
       {isCliente && (
         <div className={styles["conversa-initials"]}>
           {formatarNome(remetente?.nome || nomeCliente).slice(0,2)}
         </div>
-      )}
 
+        
+      )}
       <div
         className={styles["conversa-bubble"]}
         style={isCliente
@@ -49,14 +48,12 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
 
         {/* IMAGEM */}
         {/* Renderiza IMAGEM como miniatura */}
-{msg.tipo === "imagem" && msg.arquivo_url && (
-  <div
-    style={{
-      display: "inline-block",
-      position: "relative",
-      margin: "8px 0"
-    }}
-  >
+        {msg.tipo === "imagem" && msg.arquivo_url && (
+          <div style={{
+            display: "inline-block",
+            position: "relative",
+            margin: "8px 0"
+          }}>
     <img
       src={msg.arquivo_url}
       alt={msg.nome_arquivo || "Imagem enviada"}
@@ -163,30 +160,48 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
                   <path d="M12 16l6-6h-4V4h-4v6H6z"/><path d="M20 20H4v-2h16v2z"/>
                 </svg>
               </a>
-              {/* Botão para enviar para iPhone */}
-              <BotaoIphone
-                enviado={!!enviadosIphone[arquivo.nome]}
-                onClick={async () => {
-                  try {
-                    const resposta = await fetch("http://localhost:5001/api/reenviar-arquivo", {
-                      method: "POST",
-                      headers: { "Content-Type": "application/json" },
-                      body: JSON.stringify({ mensagemId: msg.id }),
-                    });
-                    const json = await resposta.json();
-                    if (json.status === "ok") {
-                      setEnviadosIphone(prev => ({
-                        ...prev,
-                        [arquivo.nome]: true
-                      }));
-                    } else {
-                      alert("Falha ao reenviar áudio para iPhone: " + (json.error || "Erro desconhecido"));
-                    }
-                  } catch (err) {
-                    alert("Erro ao conectar ao backend: " + err.message);
-                  }
-                }}
-              />
+
+              
+              
+              {/* Botão animado de reenvio para iPhone */}
+  {/* Botão animado + label embaixo */}
+<div
+  style={{
+    position: "relative",
+    width: 40,          // igual ou um pouco maior que o botão (ajuste ao seu size)
+    height: 40,         // idem
+    marginLeft: 8       // só se quiser espaçar do download
+  }}
+>
+  <BotaoReenvioAudioLottie
+    enviado={!!enviadosIphone?.[msg.id]}
+    onReenviar={async () => {
+      const resposta = await fetch("http://localhost:5001/api/reenviar-arquivo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensagemId: msg.id }),
+      });
+      const json = await resposta.json();
+      if (json.status !== "ok") throw new Error(json.error || "Erro");
+      setEnviadosIphone(prev => ({ ...prev, [msg.id]: true }));
+    }}
+  />
+  <span
+    style={{
+      position: "absolute",
+      top: "100%",                // logo abaixo do botão
+      left: "50%",                // meio do wrapper
+      transform: "translate(7%, 2px)", // centraliza e afasta 4px pra baixo
+      fontSize: 8,
+      fontWeight: 600,
+      color: enviadosIphone[msg.id] ? "#27ae60" : "#2196f3",
+      whiteSpace: "nowrap"
+    }}
+  >
+    IPHONE
+  </span>
+</div>
+  
             </div>
           ))}
         <div style={{ fontSize: 10, color: "#999" }}>
@@ -195,7 +210,7 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
       </div>
     )}
   </>
-);
+
 
 
 
@@ -704,6 +719,9 @@ const [canalSelecionado, setCanalSelecionado] = useState("WhatsApp Cockpit");
 const [audioParaEnviar, setAudioParaEnviar] = useState(null);
 const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
+const navigate = useNavigate();
+
+
 
 
 
@@ -852,6 +870,38 @@ if (!error) {
 }
 };
 
+const fetchLeadAtualizado = async () => {
+  const { data, error } = await supabase
+    .from("leads")
+    .select(`
+      *,
+      revenda:revenda_id (
+        id, nome, telefone, endereco
+      ),
+      vendedor:vendedor_id (
+        id, nome, telefone
+      )
+    `)
+    .eq("id", leadId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Erro ao buscar lead:", error.message);
+    setLead(null);
+    setTemp("frio");
+    setStatus("Nova Proposta");
+  } else if (!data) {
+    setLead(null);
+    setTemp("frio");
+    setStatus("Nova Proposta");
+  } else {
+    setLead(data);
+    setTemp(data.temperatura || "frio");
+    setStatus(data.etapa || "Nova Proposta");
+  }
+};
+
+
 
 
 
@@ -913,16 +963,33 @@ const handleEnviarArquivo = async (e) => {
     });
 
     await fetch("http://localhost:5001/api/enviar-midia", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        telefone: lead.telefone, // ou como está disponível na sua tela
-        arquivos,
-        lead_id: lead.id,
-        remetente_id: usuarioAtual.id,
-        remetente: usuarioAtual.nome,
-      }),
-    });
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    telefone: lead.telefone, // ou como está disponível na sua tela
+    arquivos,
+    lead_id: lead.id,
+    remetente_id: usuarioAtual.id,
+    remetente: usuarioAtual.nome,
+  }),
+});
+
+// NOVO: Dispara automação de status/timeline no backend CRM
+await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({
+    lead_id: lead.id,
+    tipo: "imagem", // ou "audio" se for o caso
+    direcao: "saida",
+    usuario_id: usuarioAtual.id,
+    conteudo: "[Mídia enviada]",
+  }),
+});
+
+// NOVO: Atualiza status/etapa do lead no front
+await fetchLeadAtualizado();
+
 
     console.log("✅ Mídia enviada e registrada!");
     e.target.value = "";
@@ -991,8 +1058,13 @@ useEffect(() => {
   };
 }, []);
 
-
-
+useEffect(() => {
+  const socket = io("http://localhost:3001");
+  socket.on("audioReenviado", ({ mensagemId }) => {
+    setEnviadosIphone(prev => ({ ...prev, [mensagemId]: true }));
+  });
+  return () => { socket.off("audioReenviado"); socket.disconnect(); }
+}, []);
 
 
 
@@ -1117,6 +1189,25 @@ useEffect(() => {
       }
     }
   };
+
+  useEffect(() => {
+    if (!lead) return;
+    async function carregarMensagens() {
+      const resposta = await fetch(`http://localhost:5001/api/mensagens/${lead.id}`);
+      const msgs = await resposta.json();
+      // monta um objeto { [msg.id]: true } para cada msg com audio_reenviado === true
+      const iniciais = {};
+      msgs.forEach(m => {
+        if (m.audio_reenviado) {
+          iniciais[m.id] = true;
+        }
+      });
+      setEnviadosIphone(iniciais);
+      setMensagens(msgs); // supondo que você faça algo assim
+    }
+    carregarMensagens();
+  }, [lead]);
+  
   
   
     
@@ -1226,44 +1317,12 @@ useEffect(() => {
   
   
 
-  // ESTE É NOVO, ADICIONE APÓS O useEffect das mensagens
+  
 useEffect(() => {
-  if (!leadId) return;
+  if (!leadId) return;  
 
-  const fetchLead = async () => {
-    const { data, error } = await supabase
-  .from("leads")
-  .select(`
-    *,
-    revenda:revenda_id (
-      id, nome, telefone, endereco
-    ),
-    vendedor:vendedor_id (
-      id, nome, telefone
-    )
-  `)
-  .eq("id", leadId)
-  .maybeSingle(); // Troque single() por maybeSingle()
+  fetchLeadAtualizado();
 
-if (error) {
-  console.error("Erro ao buscar lead:", error.message);
-  setLead(null);
-  setTemp("frio");
-  setStatus("Nova Proposta");
-} else if (!data) {
-  // Não encontrou nenhum lead
-  setLead(null);
-  setTemp("frio");
-  setStatus("Nova Proposta");
-} else {
-  setLead(data);
-  setTemp(data.temperatura || "frio");
-  setStatus(data.etapa || "Nova Proposta");
-}
-
-  };
-
-  fetchLead();
 }, [leadId]);
 
   
@@ -1377,8 +1436,28 @@ if (error) {
           setAudioParaEnviar(null);
           setMensagem("");
           await fetchMensagens();
-          return; // SAI após enviar áudio!
-        } else {
+        
+          // NOVO: dispara automação backend
+          try {
+            await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                lead_id: leadId,
+                tipo: "audio", // ou "imagem", etc
+                direcao: "saida",
+                usuario_id: usuarioAtual?.id || null,
+                conteudo: "[Áudio enviado]",
+              }),
+            });
+          } catch (err) {
+            console.error("❌ Erro ao acionar automação backend:", err);
+          }
+          return;
+        }
+        
+        
+        else {
           const erro = result.error || "Erro desconhecido.";
           alert("Erro ao enviar áudio: " + erro);
           return;
@@ -1433,7 +1512,28 @@ if (error) {
       if (result.status === "ok") {
         setMensagem(""); // limpa input
         await fetchMensagens(); // atualiza histórico imediatamente
-      } else {
+      
+        // NOVO: dispara automação de status no backend CRM
+        try {
+          await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              lead_id: leadId,
+              tipo: "texto", // ou "audio"/"imagem" se for o caso
+              direcao: "saida",
+              usuario_id: usuarioAtual?.id || null,
+              conteudo: mensagem, // ou mensagemComPlaceholders se preferir
+            }),
+          });
+          // Não precisa tratar resposta aqui, apenas dispara
+        } catch (err) {
+          console.error("❌ Erro ao acionar automação backend:", err);
+        }
+      }
+      
+            
+      else {
         const erro = result.error || "Erro desconhecido.";
         alert("Erro ao enviar mensagem: " + erro);
       }
@@ -1491,8 +1591,13 @@ const baixarTodasImagens = async (imagens, groupId = "") => {
 
 const renderMensagens = () =>
   mensagens.map((msg) => (
-    <Bubble key={msg.id} msg={msg} mapaUsuarios={mapaUsuarios} enviadosIphone={enviadosIphone}
-    setEnviadosIphone={setEnviadosIphone} />
+    <Bubble 
+    key={msg.id} 
+    msg={msg} 
+    mapaUsuarios={mapaUsuarios}
+     enviadosIphone={enviadosIphone}
+     setEnviadosIphone={setEnviadosIphone}
+    />
   ));
 
   if (!lead) return <div>Carregando lead...</div>;
@@ -1500,8 +1605,10 @@ const renderMensagens = () =>
 
   return (
     <div className={styles["conversa-wrapper"]}>
+      
       <div className={styles["conversa-header"]}>
         <div className={styles["conversa-top-bar"]}>Conversa</div>
+        
         <div className={styles["conversa-header-content"]}>
           <div className={styles["conversa-header-left"]}>
             <div className={styles["conversa-info-line"]}>
@@ -1560,10 +1667,9 @@ const renderMensagens = () =>
 
               <select
   className={styles["conversa-status-select"]}
-  value={status}
+  value={lead?.etapa || "nova_proposta"}
   onChange={async (e) => {
     const novaEtapa = e.target.value;
-    setStatus(novaEtapa);
 
     const { error } = await supabase
       .from("leads")
@@ -1574,19 +1680,18 @@ const renderMensagens = () =>
       console.error("Erro ao atualizar etapa:", error.message);
       alert("Erro ao salvar nova etapa.");
     } else {
-      // ADICIONAR: salva evento na timeline
+      // Salva evento na timeline (status anterior REAL, vindo do banco, não do estado local!)
       const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
       const eventoTimeline = {
         lead_id: lead.id,
         tipo: "etapa",
         usuario_id: usuarioLocal.id,
         criado_em: new Date().toISOString(),
-        conteudo: `Alterou Status de ${statusFormat(status)} para ${statusFormat(novaEtapa)}`,
+        conteudo: `Alterou Status de ${statusFormat(lead?.etapa)} para ${statusFormat(novaEtapa)}`,
         etapa_nova: novaEtapa,
-        etapa_anterior: status,
+        etapa_anterior: lead?.etapa,
       };
-      
-      
+
       const { data: tlData, error: tlError } = await supabase
         .from("timeline")
         .insert([eventoTimeline]);
@@ -1596,45 +1701,45 @@ const renderMensagens = () =>
       } else {
         console.log("Evento timeline inserido:", tlData);
 
-        // ----------- ADICIONE ESSA PARTE AQUI -----------
         // Atualiza a timeline imediatamente
         const { data, error } = await supabase
-  .from("timeline")
-  .select("id, tipo, conteudo, usuario_id, criado_em, data, hora, descricao, nota, duracao, etapa_nova, etapa_anterior")
-  .eq("lead_id", lead.id)
-  .order("criado_em", { ascending: true });
+          .from("timeline")
+          .select("id, tipo, conteudo, usuario_id, criado_em, data, hora, descricao, nota, duracao, etapa_nova, etapa_anterior")
+          .eq("lead_id", lead.id)
+          .order("criado_em", { ascending: true });
 
-          console.log("EVENTOS TIMELINE:", data, error);
+        console.log("EVENTOS TIMELINE:", data, error);
 
-          if (!error) {
-            setTimeline(
-              (data || []).map(ev => ({
-                ...ev,
-                data_hora: ev.criado_em,
-                autor_id: ev.usuario_id,
-                detalhes: ev.conteudo,
-                data: ev.data,
-                hora: ev.hora,
-                descricao: ev.descricao,
-                nota: ev.nota,
-                duracao: ev.duracao,
-              }))
-            );
-          }
-          
+        if (!error) {
+          setTimeline(
+            (data || []).map(ev => ({
+              ...ev,
+              data_hora: ev.criado_em,
+              autor_id: ev.usuario_id,
+              detalhes: ev.conteudo,
+              data: ev.data,
+              hora: ev.hora,
+              descricao: ev.descricao,
+              nota: ev.nota,
+              duracao: ev.duracao,
+            }))
+          );
+        }
+
+        // NOVO: Sempre atualizar o lead do banco, para garantir sincronia!
+        await fetchLeadAtualizado();
         // ----------- FIM DO AJUSTE -----------
       }
     }
   }}
 >
+  <option value="nova_proposta">Nova Proposta</option>
+  <option value="nao_respondidos">Não Respondidos</option>
+  <option value="visita_agendada">Visita Agendada</option>
+  <option value="negociacao">Negociação</option>
+  <option value="sem_contato">Sem Contato</option>
+</select>
 
-
-                <option>Nova Proposta</option>
-                <option>Não Respondidos</option>
-                <option>Visita Agendada</option>
-                <option>Negociação</option>
-                <option>Sem Contato</option>
-              </select>
               <div className={styles["lead-mini-card"]}>
   <div className={styles["lead-mini-card-top"]}>
     <img
@@ -1875,8 +1980,14 @@ const renderMensagens = () =>
 
       {/* 3. MENSAGEM */}
       {item.tipo_evento === "mensagem" && (
-  <Bubble msg={item} mapaUsuarios={mapaUsuarios} enviadosIphone={enviadosIphone}
-  setEnviadosIphone={setEnviadosIphone} />
+  <Bubble
+  key={item.id}                   // sempre bom ter key
+  msg={item}
+  mapaUsuarios={mapaUsuarios}
+  enviadosIphone={enviadosIphone}
+  setEnviadosIphone={setEnviadosIphone} 
+  
+  />
 )}
 
 
