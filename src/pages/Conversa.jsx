@@ -575,7 +575,7 @@ function statusFormat(etapa) {
   const mapa = {
     "semcontato": "Sem Contato",
     "novaproposta": "Nova Proposta",
-    "emnegociacao": "Em Negociação",
+    "negociacao": "Em Negociação",
     "vendido": "Vendido",
     "perdido": "Perdido",
     "naorespondidos": "Não Respondidos"
