@@ -169,17 +169,17 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
       precisaAtualizar = true;
       descricaoEvento = "Mensagem enviada (auto ou manual): movido para Sem Contato";
     } else if (lead.etapa === "sem_contato" && direcao === "entrada") {
-      novaEtapa = "sem_resposta";
+      novaEtapa = "nao_respondidos";
       precisaAtualizar = true;
-      descricaoEvento = "Cliente respondeu: movido para Sem Resposta";
-    } else if (lead.etapa === "sem_resposta" && direcao === "saida") {
+      descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
+    } else if (lead.etapa === "nao_respondidos" && direcao === "saida") {
       novaEtapa = "em_negociacao";
       precisaAtualizar = true;
       descricaoEvento = "Usuário respondeu: movido para Em Negociação";
     } else if (lead.etapa === "em_negociacao" && direcao === "entrada") {
-      novaEtapa = "sem_resposta";
+      novaEtapa = "nao_respondidos";
       precisaAtualizar = true;
-      descricaoEvento = "Cliente respondeu: movido para Sem Resposta";
+      descricaoEvento = "Cliente respondeu: movido para Não Respondidos ";
     } else if (lead.etapa === "em_negociacao" && direcao === "saida") {
       // Permanece em negociação
       descricaoEvento = "Usuário respondeu: permanece Em Negociação";
