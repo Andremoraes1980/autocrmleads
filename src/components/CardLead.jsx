@@ -135,7 +135,7 @@ const { data, error } = await supabase
       color: "#b91c1c",
       borderRadius: 14,
       fontWeight: 600,
-      fontSize: 13,
+      fontSize: 9,
       padding: "2px 10px",
       marginLeft: 4,
       boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
