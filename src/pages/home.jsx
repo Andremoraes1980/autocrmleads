@@ -294,6 +294,17 @@ setUsuarioAtual({
     };
   }, []);
 
+  // Sempre que os leads mudarem (fetch novo, drag-and-drop, etc), recalcula tempoDecorrido na hora!
+useEffect(() => {
+  setLeads((prev) =>
+    prev.map((l) => ({
+      ...l,
+      tempoDecorrido: calcularTempoDecorrido(l.created_at),
+    }))
+  );
+}, [leads.length]);
+
+
   useEffect(() => {
     if (usuarioAtual && vendedoresLista.length > 0) {
       buscarLeads();
