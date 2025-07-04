@@ -142,6 +142,7 @@ function SortableCard({ lead, vendedores, onAbrirModalVendedor }) {
   onAbrirModalVendedor={() => onAbrirModalVendedor(lead)} // Aqui corrigido!
   isDragging={isDragging}
   vendedores={vendedores}
+  tempoMsgCliente={lead.tempoMsgCliente} // <-- ADICIONADO
 />
     </div>
   );
@@ -340,28 +341,105 @@ console.log("🟦 [buscarLeads] Tipo do usuário:", usuarioAtual?.tipo, "ID:", u
 
 const { data, error } = await query;
 
+// ...após const { data, error } = await query;
+
+if (!error) {
+  // 1. Para cada lead, busque a última mensagem do cliente no Supabase
+  const leadsProcessados = await Promise.all(data.map(async (lead) => {
+    // Busca a última mensagem de entrada (direcao: "entrada") para esse lead
+    const { data: msgsCliente, error: errorMsg } = await supabase
+      .from("mensagens")
+      .select("*")
+      .eq("lead_id", lead.id)
+      .eq("direcao", "entrada")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    // Busca a última mensagem de saída (direcao: "saida")
+    const { data: msgsUsuario } = await supabase
+      .from("mensagens")
+      .select("*")
+      .eq("lead_id", lead.id)
+      .eq("direcao", "saida")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    let tempoUltimaMsgCliente = null;
+    if (msgsCliente && msgsCliente.length > 0) {
+      // Se não existe resposta do usuário depois, considera como pendente
+      const ultimaMsgCliente = msgsCliente[0];
+      const ultimaMsgUsuario = msgsUsuario && msgsUsuario.length > 0 ? msgsUsuario[0] : null;
+      // Só considera o timer ativo se a resposta do usuário for anterior
+      if (!ultimaMsgUsuario || new Date(ultimaMsgCliente.criado_em) > new Date(ultimaMsgUsuario.criado_em)) {
+        tempoUltimaMsgCliente = Math.floor((Date.now() - new Date(ultimaMsgCliente.criado_em)) / 1000); // segundos
+      }
+    }
+
+    const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
+
+    return {
+      ...lead,
+      vendedor: vendedorObj?.id || "",
+      vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : "Sem vendedor",
+      tempoDecorrido: calcularTempoDecorrido(lead.created_at),
+      tempoMsgCliente: tempoUltimaMsgCliente, // <-- ADICIONA ESSA PROP
+    };
+  }));
+
+  setLeads(leadsProcessados);
+}
+
+
 console.log("🟦 [buscarLeads] Leads carregados do banco:", data);
 
 
 
-    if (!error) {
-      const leadsProcessados = data.map((lead) => {
-        const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
-        if (!vendedorObj) {
-          console.warn("Lead sem vendedor correspondente:", lead);
-        }
-        return {
-          ...lead,
-          vendedor: vendedorObj?.id || "",
-          vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : "Sem vendedor",
-          tempoDecorrido: calcularTempoDecorrido(lead.created_at),
-        };
-      });
-      
-      console.log("Leads processados:", leadsProcessados);
-      setLeads(leadsProcessados);
-      
+if (!error) {
+  // 1. Para cada lead, busque a última mensagem do cliente no Supabase
+  const leadsProcessados = await Promise.all(data.map(async (lead) => {
+    // Busca a última mensagem de entrada (direcao: "entrada") para esse lead
+    const { data: msgsCliente } = await supabase
+      .from("mensagens")
+      .select("*")
+      .eq("lead_id", lead.id)
+      .eq("direcao", "entrada")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    // Busca a última mensagem de saída (direcao: "saida")
+    const { data: msgsUsuario } = await supabase
+      .from("mensagens")
+      .select("*")
+      .eq("lead_id", lead.id)
+      .eq("direcao", "saida")
+      .order("criado_em", { ascending: false })
+      .limit(1);
+
+    let tempoUltimaMsgCliente = null;
+    if (msgsCliente && msgsCliente.length > 0) {
+      // Se não existe resposta do usuário depois, considera como pendente
+      const ultimaMsgCliente = msgsCliente[0];
+      const ultimaMsgUsuario = msgsUsuario && msgsUsuario.length > 0 ? msgsUsuario[0] : null;
+      // Só considera o timer ativo se a resposta do usuário for anterior
+      if (!ultimaMsgUsuario || new Date(ultimaMsgCliente.criado_em) > new Date(ultimaMsgUsuario.criado_em)) {
+        tempoUltimaMsgCliente = Math.floor((Date.now() - new Date(ultimaMsgCliente.criado_em)) / 1000); // segundos
+      }
     }
+
+    const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
+    return {
+      ...lead,
+      vendedor: vendedorObj?.id || "",
+      vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : "Sem vendedor",
+      tempoDecorrido: calcularTempoDecorrido(lead.created_at),
+      tempoMsgCliente: tempoUltimaMsgCliente, // <-- ADICIONA ESSA PROP
+    };
+  }));
+
+  console.log("Leads processados:", leadsProcessados);
+  setLeads(leadsProcessados);
+}
+
     
     else {
       console.error("Erro ao buscar leads:", error);

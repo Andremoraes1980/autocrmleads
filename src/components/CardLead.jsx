@@ -126,10 +126,29 @@ const { data, error } = await supabase
     >
       <div className="card-title">
         {formatarNome(nome)}
-        <div className="card-time">
-          <FaRegClock style={{ marginRight: "4px" }} />
-          {formatarTempo(tempoDecorrido)}
-        </div>
+        <div className="card-time" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+  <FaRegClock style={{ marginRight: "4px" }} />
+  {tempoMsgCliente != null ? formatarTempo(tempoMsgCliente) : formatarTempo(tempoDecorrido)}
+  {tempoMsgCliente != null && (
+    <span style={{
+      background: "#fee2e2",
+      color: "#b91c1c",
+      borderRadius: 14,
+      fontWeight: 600,
+      fontSize: 13,
+      padding: "2px 10px",
+      marginLeft: 4,
+      boxShadow: "0 1px 3px rgba(0,0,0,0.07)",
+      display: "inline-block"
+    }}>
+      {tempoMsgCliente < 3600
+        ? `${Math.floor(tempoMsgCliente / 60)}min Sem Retorno`
+        : `${Math.floor(tempoMsgCliente / 3600)}h Sem Retorno`
+      }
+    </span>
+  )}
+</div>
+
       </div>
 
       <div className="dotted-rectangle">

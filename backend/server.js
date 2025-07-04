@@ -187,6 +187,8 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
 
     // Atualiza etapa do lead se necessário
     if (precisaAtualizar && novaEtapa !== lead.etapa) {
+      console.log(`[LOG] Atualizando lead_id ${lead_id}: etapa será "${novaEtapa}" (antes era "${lead.etapa}")`);
+
       await supabase
         .from('leads')
         .update({ etapa: novaEtapa })
