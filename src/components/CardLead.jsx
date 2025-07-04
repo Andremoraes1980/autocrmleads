@@ -32,6 +32,7 @@ const CardLead = ({
     onTemperaturaChange = () => {},
     onVendedorChange = () => {},
     onAbrirModalVendedor = () => {},
+    tempoMsgCliente = null, // <-- ADICIONE ESTA LINHA
     
 
 }) => {
