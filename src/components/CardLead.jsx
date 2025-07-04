@@ -129,7 +129,6 @@ const { data, error } = await supabase
         {formatarNome(nome)}
         <div className="card-time" style={{ display: "flex", alignItems: "center", gap: 8 }}>
   <FaRegClock style={{ marginRight: "4px" }} />
-  {tempoMsgCliente != null ? formatarTempo(tempoMsgCliente) : formatarTempo(tempoDecorrido)}
   {tempoMsgCliente != null && (
     <span style={{
       background: "#fee2e2",
@@ -149,6 +148,7 @@ const { data, error } = await supabase
     </span>
   )}
 </div>
+
 
       </div>
 
