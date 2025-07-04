@@ -131,7 +131,7 @@ const { data, error } = await supabase
   <FaRegClock style={{ marginRight: "4px" }} />
   {tempoMsgCliente != null && (
     <span style={{
-      background: rgb(227,165,165),
+      background: 'rgb(227,165,165)',
       color: "#b91c1c",
       borderRadius: 14,
       fontWeight: 600,
