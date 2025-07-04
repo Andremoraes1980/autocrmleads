@@ -142,8 +142,8 @@ const { data, error } = await supabase
       display: "inline-block"
     }}>
       {tempoMsgCliente < 3600
-        ? `${Math.floor(tempoMsgCliente / 60)}min Sem Retorno`
-        : `${Math.floor(tempoMsgCliente / 3600)}h Sem Retorno`
+        ? `${Math.floor(tempoMsgCliente / 60)} min Sem Retorno`
+        : `${Math.floor(tempoMsgCliente / 3600)} h Sem Retorno`
       }
     </span>
   )}
