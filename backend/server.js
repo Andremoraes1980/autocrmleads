@@ -193,7 +193,7 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
         .eq('id', lead_id);
     }
 
-    // Sempre registra no timeline
+    // Sempre registra no timelin
     const eventoTimeline = {
       lead_id,
       tipo: "etapa_automatica",
