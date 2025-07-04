@@ -1,5 +1,7 @@
 // src/components/automacoes/CardAutomacao.jsx
 import React from "react";
+import React, { useState } from "react";
+
 
 export default function CardAutomacao({
   statusColuna = "Sem Contato",
