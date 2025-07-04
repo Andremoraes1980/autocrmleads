@@ -56,11 +56,11 @@ const CardLead = ({
   const formatarTempo = (segundos) => {
     if (segundos < 60) return "Agora mesmo";
     const minutos = Math.floor(segundos / 60);
-    if (minutos < 60) return `${minutos}m atrás`;
+    if (minutos < 60) return `${minutos} m atrás`;
     const horas = Math.floor(minutos / 60);
-    if (horas < 24) return `${horas}h atrás`;
+    if (horas < 24) return `${horas} h atrás`;
     const dias = Math.floor(horas / 24);
-    return `${dias}d atrás`;
+    return `${dias}dias atrás`;
   };
 
   const coresTemperatura = {
@@ -131,7 +131,7 @@ const { data, error } = await supabase
   <FaRegClock style={{ marginRight: "4px" }} />
   {tempoMsgCliente != null && (
     <span style={{
-      background: "#fee2e2",
+      background: rgbUnit(227,165,165),
       color: "#b91c1c",
       borderRadius: 14,
       fontWeight: 600,
