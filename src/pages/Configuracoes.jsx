@@ -5,6 +5,8 @@ import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
+const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
+
 
 
 
@@ -130,7 +132,25 @@ const renderConteudo = () => {
   } else if (abaAtiva === "automacoes") {
     return (
       <div className={styles.abaConteudo}>
-        <h3>Automação de Mensagens por Status</h3>
+        <h3>Automação de Mensagens</h3>
+        <button
+  onClick={() => setModalNovaAutomacaoOpen(true)}
+  style={{
+    background: "#2563eb",
+    color: "#fff",
+    border: "none",
+    borderRadius: 8,
+    fontWeight: 600,
+    fontSize: 16,
+    padding: "10px 22px",
+    marginBottom: 18,
+    cursor: "pointer",
+    boxShadow: "0 2px 4px rgba(0,0,0,0.07)"
+  }}
+>
+  + Nova Automação
+</button>
+
         <p>
           Gerencie aqui as mensagens automáticas para cada etapa do seu funil.
         </p>
@@ -185,6 +205,58 @@ const renderConteudo = () => {
     );
   }
 };
+
+{modalNovaAutomacaoOpen && (
+  <div
+    style={{
+      position: "fixed",
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      background: "rgba(0,0,0,0.20)",
+      zIndex: 1000,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    }}
+    onClick={() => setModalNovaAutomacaoOpen(false)}
+  >
+    <div
+      style={{
+        background: "#fff",
+        padding: 44,
+        borderRadius: 14,
+        minWidth: 340,
+        boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
+        position: "relative",
+      }}
+      onClick={e => e.stopPropagation()}
+    >
+      <h4 style={{ marginBottom: 22 }}>Nova Automação (em construção)</h4>
+      <button
+        style={{
+          position: "absolute",
+          top: 18,
+          right: 18,
+          background: "none",
+          border: "none",
+          fontSize: 26,
+          color: "#888",
+          cursor: "pointer"
+        }}
+        onClick={() => setModalNovaAutomacaoOpen(false)}
+        aria-label="Fechar"
+      >
+        ×
+      </button>
+      <div style={{ color: "#777", fontSize: 17 }}>
+        Aqui virá o formulário para criar uma nova automação personalizada.
+      </div>
+    </div>
+  </div>
+)}
+
 
 
 
