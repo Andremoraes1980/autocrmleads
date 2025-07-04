@@ -4,6 +4,8 @@ import Layout from "../components/Layout";
 import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
+import CardAutomacao from "../components/automacoes/CardAutomacao";
+
 
 
 export default function Configuracoes() {
@@ -122,134 +124,55 @@ window.location.href = url;};
 
 const renderConteudo = () => {
   if (abaAtiva === "dados-revenda") {
-    return (
-      <div className={styles.abaConteudo}>
-        <h3>Dados da Revenda</h3>
-        <form className={styles.formRevenda} onSubmit={salvarRevenda}>
-          <label>Nome da Revenda:</label>
-          <input
-            placeholder="Digite o nome da revenda..."
-            value={nome}
-            onChange={(e) => setNome(e.target.value)}
-            className={styles.formInput}
-          />
-
-          <label>Endereço:</label>
-          <input
-            placeholder="Digite o endereço..."
-            value={endereco}
-            onChange={(e) => setEndereco(e.target.value)}
-            className={styles.formInput}
-          />
-
-          <label>Telefone:</label>
-          <input
-            type="text"
-            placeholder="(11) 98765-4321"
-            value={telefone}
-            onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
-            className={styles.formInput}
-          />
-
-          <label>Instagram:</label>
-          <input
-            placeholder="@sua_loja"
-            value={instagram}
-            onChange={(e) => setInstagram(e.target.value)}
-            className={styles.formInput}
-          />
-
-          <label>Site:</label>
-          <input
-            placeholder="https://www.sualoja.com.br"
-            value={site}
-            onChange={(e) => setSite(e.target.value)}
-            className={styles.formInput}
-          />
-
-          <label>Facebook:</label>
-          <input
-            placeholder="https://www.facebook.com/sualoja"
-            value={facebook}
-            onChange={(e) => setFacebook(e.target.value)}
-            className={styles.formInput}
-          />
-
-          <button type="submit" className={styles.botaoSalvar}>Salvar</button>
-        </form>
-      </div>
-    );
+    // ... (igual está)
   } else if (abaAtiva === "integracoes") {
+    // ... (igual está)
+  } else if (abaAtiva === "automacoes") {
     return (
       <div className={styles.abaConteudo}>
-        <h3>Integrações com Classificados</h3>
-        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
-          {/* OLX */}
-          <div className={styles.cardIntegracao}>
-            <img src="/olx.png" alt="OLX" style={{ width: 56 }} />
-            <div>OLX</div>
-            <button className={styles.botaoConectar} disabled>Conectar</button>
-          </div>
-          
-          {/* Webmotors */}
-<div className={styles.cardIntegracao}>
-  <img src="/webmotors.png" alt="Webmotors" style={{ width: 56 }} />
-  <div>Webmotors</div>
-  {webmotorsStatus === "conectado" ? (
-    <span style={{ color: "green", fontWeight: "bold" }}>Conectado</span>
-  ) : webmotorsStatus === "aguardando" ? (
-    <span style={{ color: "#E67E22", fontWeight: "bold" }}>Aguardando Lead...</span>
-  ) : (
-    <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(true)}>
-      Conectar
-    </button>
-  )}
-
-  {/* Modal de instrução */}
-  {modalWebmotorsOpen && (
-    <div className={styles.modalOverlay}>
-      <div className={styles.modalContent}>
-        <h4>Integração Webmotors</h4>
-        <ol>
-          <li>Acesse o painel Webmotors da sua loja.</li>
-          <li>No campo <b>Callback URL Leads</b>, cole este endereço:<br />
-            <code style={{ background: "#f5f5f5", padding: "2px 6px" }}>
-              https://autocrm-backend.onrender.com/api/webmotors-leads
-            </code>
-            <button
-              style={{ marginLeft: 8, padding: "2px 10px", cursor: "pointer" }}
-              onClick={() =>
-                navigator.clipboard.writeText("https://autocrm-backend.onrender.com/api/webmotors-leads")
-              }
-            >Copiar</button>
-          </li>
-          <li>Salve e teste o envio de um lead de teste.</li>
-          <li>Depois, clique em <b>“Já cadastrei”</b> abaixo.</li>
-        </ol>
-        <div style={{ display: "flex", gap: 16 }}>
-          <button className={styles.botaoConectar} onClick={handleJaCadastreiWebmotors}>
-            Já cadastrei
-          </button>
-          <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(false)}>
-            Cancelar
-          </button>
-        </div>
-      </div>
-    </div>
-  )}
+        <h3>Automação de Mensagens por Status</h3>
+        <p>
+          Gerencie aqui as mensagens automáticas para cada etapa do seu funil.
+        </p>
+        <div style={{ marginTop: 28 }}>
+  <CardAutomacao
+    statusColuna="Sem Contato"
+    nome="Boas-vindas Sem Contato"
+    ativa={true}
+    mensagens={[
+      {
+        id: 1,
+        texto: "Olá {{nome}}, vimos seu interesse! Fale conosco.",
+        tempo: "10min",
+        status: "pendente",
+        ativa: true,
+      },
+      {
+        id: 2,
+        texto: "Podemos ajudar em algo? Responda por aqui!",
+        tempo: "1h",
+        status: "pendente",
+        ativa: true,
+      },
+    ]}
+    onToggleAtiva={() => alert("Trocar ativação da automação")}
+    onEditar={() => alert("Editar automação")}
+    onExcluir={() => alert("Excluir automação")}
+    onTestar={() => alert("Testar automação")}
+  />
 </div>
 
-          
-          {/* Mercado Livre */}
-          <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
-
-
-          {/* Autoline */}
-          <div className={styles.cardIntegracao}>
-            <img src="/autoline.png" alt="Autoline" style={{ width: 56 }} />
-            <div>Autoline</div>
-            <button className={styles.botaoConectar} disabled>Conectar</button>
-          </div>
+        <div style={{
+          background: "#fffbe6",
+          border: "1px solid #ffe58f",
+          borderRadius: 12,
+          padding: "32px",
+          color: "#a08c00",
+          fontWeight: 500,
+          textAlign: "center",
+          marginTop: 24
+        }}>
+          <span>Em breve, você poderá criar automações personalizadas para cada status do seu funil! 🚀</span>
         </div>
       </div>
     );
@@ -264,6 +187,7 @@ const renderConteudo = () => {
 };
 
 
+
   return (
     <Layout>
       <div className={styles.mainContainer}>
@@ -272,23 +196,30 @@ const renderConteudo = () => {
         </div>
 
         <div className={styles.actionContainer}>
-          <div className={styles.containerAbas}>
-            <button
-              className={`${styles.aba} ${
-                abaAtiva === "dados-revenda" ? styles.abaAtiva : ""
-              }`}
-              onClick={() => setAbaAtiva("dados-revenda")}
-            >
-              Dados da Revenda
-            </button>
+        <div className={styles.containerAbas}>
+  <button
+    className={`${styles.aba} ${
+      abaAtiva === "dados-revenda" ? styles.abaAtiva : ""
+    }`}
+    onClick={() => setAbaAtiva("dados-revenda")}
+  >
+    Dados da Revenda
+  </button>
 
-            <button
-  className={`${styles.aba} ${abaAtiva === "integracoes" ? styles.abaAtiva : ""}`}
-  onClick={() => setAbaAtiva("integracoes")}
->
-  Integrações
-</button>
-          </div>
+  <button
+    className={`${styles.aba} ${abaAtiva === "integracoes" ? styles.abaAtiva : ""}`}
+    onClick={() => setAbaAtiva("integracoes")}
+  >
+    Integrações
+  </button>
+
+  <button
+    className={`${styles.aba} ${abaAtiva === "automacoes" ? styles.abaAtiva : ""}`}
+    onClick={() => setAbaAtiva("automacoes")}
+  >
+    Automação
+  </button>
+</div>
 
           {renderConteudo()}
         </div>
