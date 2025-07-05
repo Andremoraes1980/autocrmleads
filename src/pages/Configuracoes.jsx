@@ -5,6 +5,8 @@ import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
+import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
+
 
 
 
@@ -195,6 +197,16 @@ const renderConteudo = () => {
         }}>
           <span>Em breve, você poderá criar automações personalizadas para cada status do seu funil! 🚀</span>
         </div>
+
+        <ModalNovaAutomacao
+  open={modalNovaAutomacaoOpen}
+  onClose={() => setModalNovaAutomacaoOpen(false)}
+  onSalvar={(automacao) => {
+    setModalNovaAutomacaoOpen(false);
+    alert("Automação criada!\n" + JSON.stringify(automacao, null, 2));
+  }}
+/>
+
       </div>
     );
   } else {
@@ -207,56 +219,7 @@ const renderConteudo = () => {
   }
 };
 
-{modalNovaAutomacaoOpen && (
-  <div
-    style={{
-      position: "fixed",
-      top: 0,
-      left: 0,
-      right: 0,
-      bottom: 0,
-      background: "rgba(0,0,0,0.20)",
-      zIndex: 1000,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    }}
-    onClick={() => setModalNovaAutomacaoOpen(false)}
-  >
-    <div
-      style={{
-        background: "#fff",
-        padding: 44,
-        borderRadius: 14,
-        minWidth: 340,
-        boxShadow: "0 4px 24px rgba(0,0,0,0.12)",
-        position: "relative",
-      }}
-      onClick={e => e.stopPropagation()}
-    >
-      <h4 style={{ marginBottom: 22 }}>Nova Automação (em construção)</h4>
-      <button
-        style={{
-          position: "absolute",
-          top: 18,
-          right: 18,
-          background: "none",
-          border: "none",
-          fontSize: 26,
-          color: "#888",
-          cursor: "pointer"
-        }}
-        onClick={() => setModalNovaAutomacaoOpen(false)}
-        aria-label="Fechar"
-      >
-        ×
-      </button>
-      <div style={{ color: "#777", fontSize: 17 }}>
-        Aqui virá o formulário para criar uma nova automação personalizada.
-      </div>
-    </div>
-  </div>
-)}
+
 
 
 
