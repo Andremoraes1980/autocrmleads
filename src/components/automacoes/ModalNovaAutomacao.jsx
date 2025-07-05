@@ -5,6 +5,19 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
   const [statusColuna, setStatusColuna] = useState("");
   const [ativa, setAtiva] = useState(true);
 
+  const colunasStatus = [
+    { value: "nova_proposta", label: "Nova Proposta" },
+    { value: "nao_respondido", label: "Não Respondido" },
+    { value: "visita_agendada", label: "Visita Agendada" },
+    { value: "negociacao", label: "Negociação" },
+    { value: "sem_contato", label: "Sem Contato" },
+    { value: "vendido", label: "Vendido" },
+    { value: "perdido", label: "Perdido" }    
+    
+
+  ];
+  
+
   
 
   if (!open) return null;
@@ -52,22 +65,33 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
             />
           </label>
           <label>
-            Coluna/Status de disparo
-            <input
-              type="text"
-              value={statusColuna}
-              onChange={e => setStatusColuna(e.target.value)}
-              style={{
-                width: "100%",
-                marginTop: 4,
-                padding: 8,
-                fontSize: 16,
-                borderRadius: 8,
-                border: "1px solid #d1d5db"
-              }}
-              placeholder="Ex: Sem Contato, Nova Proposta..."
-            />
-          </label>
+  Coluna/Status de disparo
+  <select
+    value={statusColuna}
+    onChange={e => setStatusColuna(e.target.value)}
+    style={{
+      width: "220px",
+      marginTop: 4,
+      padding: 8,
+      fontSize: 16,
+      borderRadius: 8,
+      border: "1px solid #d1d5db"
+    }}
+  >
+    <option value="">Selecione...</option>
+    <option value="nova_proposta">Nova Proposta</option>
+    <option value="nao_respondido">Não Respondido</option>
+    <option value="visita_agendada">Visita Agendada</option>
+    <option value="negociacao">Negociação</option>
+    <option value="sem_contato">Sem Contato</option>
+    <option value="vendido">Vendido</option>
+    <option value="perdido">Perdido</option>
+    
+    
+    <option value="vendido">Vendido</option>
+  </select>
+</label>
+
           <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
             <input
               type="checkbox"
