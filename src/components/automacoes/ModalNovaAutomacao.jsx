@@ -4,14 +4,8 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
   const [nome, setNome] = useState("");
   const [statusColuna, setStatusColuna] = useState("");
   const [ativa, setAtiva] = useState(true);
-  const [mensagens, setMensagens] = useState([
-    {
-      id: 1,
-      texto: "",
-      tempo: "",
-      ativa: true,
-    }
-  ]);
+
+  
 
   if (!open) return null;
 
@@ -85,77 +79,7 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
           </label>
         </div>
 
-        <div style={{ marginTop: 28, marginBottom: 16, fontWeight: 500 }}>
-          Mensagens agendadas <span style={{ fontSize: 13, color: "#888" }}>(pode adicionar várias)</span>
-        </div>
-        <div>
-          {mensagens.map((msg, i) => (
-            <div key={msg.id} style={{
-              background: "#f3f4f6",
-              borderRadius: 8,
-              padding: 10,
-              marginBottom: 14,
-              display: "flex",
-              alignItems: "center",
-              gap: 10
-            }}>
-              <input
-                type="text"
-                value={msg.texto}
-                onChange={e => {
-                  const novas = mensagens.slice();
-                  novas[i].texto = e.target.value;
-                  setMensagens(novas);
-                }}
-                style={{ flex: 2, padding: 7, borderRadius: 7, border: "1px solid #ccc" }}
-                placeholder="Mensagem a ser enviada (pode usar {{nome}}, {{veiculo}}...)"
-              />
-              <input
-                type="text"
-                value={msg.tempo}
-                onChange={e => {
-                  const novas = mensagens.slice();
-                  novas[i].tempo = e.target.value;
-                  setMensagens(novas);
-                }}
-                style={{ width: 70, padding: 7, borderRadius: 7, border: "1px solid #ccc" }}
-                placeholder="Tempo"
-              />
-              <label>
-                <input
-                  type="checkbox"
-                  checked={msg.ativa}
-                  onChange={e => {
-                    const novas = mensagens.slice();
-                    novas[i].ativa = e.target.checked;
-                    setMensagens(novas);
-                  }}
-                />
-                Ativa
-              </label>
-              {mensagens.length > 1 && (
-                <button
-                  style={{
-                    background: "none", border: "none", fontSize: 18, color: "#dc2626", cursor: "pointer"
-                  }}
-                  onClick={() => setMensagens(mensagens.filter((m, idx) => idx !== i))}
-                  title="Remover mensagem"
-                >×</button>
-              )}
-            </div>
-          ))}
-          <button
-            style={{
-              background: "#fbbf24", color: "#222", border: "none", borderRadius: 7,
-              padding: "6px 14px", marginTop: 6, fontWeight: 500, cursor: "pointer"
-            }}
-            onClick={() =>
-              setMensagens([...mensagens, { id: Date.now(), texto: "", tempo: "", ativa: true }])
-            }
-          >
-            + Adicionar Mensagem
-          </button>
-        </div>
+        
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 18, marginTop: 32 }}>
           <button
             onClick={onClose}
@@ -167,7 +91,8 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
             Cancelar
           </button>
           <button
-            onClick={() => onSalvar({ nome, statusColuna, ativa, mensagens })}
+            onClick={() => onSalvar({ nome, statusColuna, ativa, canal, horario })}
+
             style={{
               background: "#16a34a", color: "#fff", border: "none",
               padding: "8px 26px", borderRadius: 7, fontSize: 15, fontWeight: 600, marginLeft: 10
