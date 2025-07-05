@@ -5,7 +5,7 @@ import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
-const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
+
 
 
 
@@ -22,6 +22,7 @@ const [facebook, setFacebook] = useState("");
 const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
 const [modalWebmotorsOpen, setModalWebmotorsOpen] = useState(false);
 const [webmotorsStatus, setWebmotorsStatus] = useState(""); // "aguardando", "conectado", "desconectado
+const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
 
 
 
