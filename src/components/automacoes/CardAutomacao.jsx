@@ -1,5 +1,5 @@
 // src/components/automacoes/CardAutomacao.jsx
-import React from "react";
+
 import React, { useState } from "react";
 
 
