@@ -136,7 +136,25 @@ export default function CardAutomacao({
               Ativa
             </label>
           </div>
-        ))}
+           
+           ))}
+
+           {/* Adicione este botão AQUI */}
+<button
+  style={{
+    background: "#3b82f6",
+    color: "#fff",
+    border: "none",
+    borderRadius: 7,
+    padding: "7px 18px",
+    marginTop: 10,
+    fontWeight: 500,
+    cursor: "pointer"
+  }}
+  onClick={onAdicionarMensagem}
+>
+  + Mensagem
+</button>
       </div>
     </div>
   );
