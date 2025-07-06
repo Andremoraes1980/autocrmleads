@@ -337,7 +337,7 @@ const renderConteudo = () => {
   {automacoes.map((auto, idx) => (
     <CardAutomacao
       key={idx}
-      statusColuna={auto.statusColuna}
+      statusColuna={auto.status_coluna}
       nome={auto.nome}
       ativa={auto.ativa}
       canal={auto.canal}
