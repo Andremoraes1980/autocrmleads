@@ -235,6 +235,7 @@ app.get('/api/automacoes', async (req, res) => {
 
 // --- Rota: Criar nova automação ---
 app.post('/api/automacoes', async (req, res) => {
+  console.log("Recebido POST /api/automacoes:", req.body); // <-- log do que chegou
   const { nome, status_coluna, ativa, canais, template_id, revenda_id } = req.body;
   if (!nome || !status_coluna || !revenda_id) {
     return res.status(400).json({ error: "Campos obrigatórios não preenchidos." });

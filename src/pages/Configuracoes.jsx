@@ -34,12 +34,14 @@ const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 async function salvarAutomacao(dados) {
   try {
     const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+    console.log("Enviando para backend:", { ...dados, revenda_id: usuario.revenda_id });
     const resp = await fetch("https://autocrm-backend.onrender.com/api/automacoes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ ...dados, revenda_id: usuario.revenda_id })
     });
     const nova = await resp.json();
+    console.log("Resposta do backend ao salvar automacao:", nova);
     setAutomacoes(prev => [nova, ...prev]);
   } catch (err) {
     console.error("Erro ao salvar automação:", err);
