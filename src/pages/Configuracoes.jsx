@@ -31,6 +31,23 @@ const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
 const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
 const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 
+async function salvarAutomacao(dados) {
+  try {
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+    const resp = await fetch("https://autocrm-backend.onrender.com/api/automacoes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dados, revenda_id: usuario.revenda_id })
+    });
+    const nova = await resp.json();
+    setAutomacoes(prev => [nova, ...prev]);
+  } catch (err) {
+    console.error("Erro ao salvar automação:", err);
+    alert("Erro ao salvar automação!");
+  }
+}
+
+
 // Função para buscar automações do backend
 async function carregarAutomacoes() {
   const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
