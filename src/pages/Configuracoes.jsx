@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabaseClient";
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
 import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
+import ModalMensagemAutomacao from "../components/automacoes/ModalMensagemAutomacao";
+
 
 
 
@@ -28,6 +30,9 @@ const [modalWebmotorsOpen, setModalWebmotorsOpen] = useState(false);
 const [webmotorsStatus, setWebmotorsStatus] = useState(""); // "aguardando", "conectado", "desconectado
 const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
 const [automacoes, setAutomacoes] = useState([]);
+const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
+const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
+
 
 
 
@@ -181,11 +186,36 @@ const renderConteudo = () => {
         setAutomacoes(automacoes.filter((a, i) => i !== idx))
       }
       onAdicionarMensagem={() => {
+        setModalMensagemOpen(true);
+        setIndiceAutomacaoSelecionada(idx); // idx é o índice do map
         // Vamos implementar a seguir!
       }}
     />
   ))}
 </div>
+
+{modalMensagemOpen && (
+  <ModalMensagemAutomacao
+    open={modalMensagemOpen}
+    onClose={() => setModalMensagemOpen(false)}
+    onSalvar={(msg) => {
+      setAutomacoes(prev => prev.map((auto, idx) => {
+        if (idx !== indiceAutomacaoSelecionada) return auto;
+        // Adiciona a nova mensagem no array de mensagens da automação selecionada
+        return {
+          ...auto,
+          mensagens: [
+            ...(auto.mensagens || []),
+            { ...msg, id: Date.now(), status: "pendente" }
+          ]
+        }
+      }));
+      setModalMensagemOpen(false);
+      setIndiceAutomacaoSelecionada(null);
+    }}
+  />
+)}
+
 
 
         <div style={{

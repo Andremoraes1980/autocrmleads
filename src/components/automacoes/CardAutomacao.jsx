@@ -27,6 +27,7 @@ export default function CardAutomacao({
   onEditar,
   onExcluir,
   onTestar,
+  onAdicionarMensagem,   // <-- ADICIONE ESTA LINHA
 }) {
   return (
     <div
