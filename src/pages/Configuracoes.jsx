@@ -6,6 +6,8 @@ import { supabase } from "../lib/supabaseClient";
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
 import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
+const [automacoes, setAutomacoes] = useState([]);
+
 
 
 
@@ -158,32 +160,32 @@ const renderConteudo = () => {
           Gerencie aqui as mensagens automáticas para cada etapa do seu funil.
         </p>
         <div style={{ marginTop: 28 }}>
-  <CardAutomacao
-    statusColuna="Sem Contato"
-    nome="Boas-vindas Sem Contato"
-    ativa={true}
-    mensagens={[
-      {
-        id: 1,
-        texto: "Olá {{nome}}, vimos seu interesse! Fale conosco.",
-        tempo: "10min",
-        status: "pendente",
-        ativa: true,
-      },
-      {
-        id: 2,
-        texto: "Podemos ajudar em algo? Responda por aqui!",
-        tempo: "1h",
-        status: "pendente",
-        ativa: true,
-      },
-    ]}
-    onToggleAtiva={() => alert("Trocar ativação da automação")}
-    onEditar={() => alert("Editar automação")}
-    onExcluir={() => alert("Excluir automação")}
-    onTestar={() => alert("Testar automação")}
-  />
+  {automacoes.length === 0 && (
+    <div style={{ color: "#888", marginTop: 18, fontSize: 16 }}>
+      Nenhuma automação cadastrada ainda.
+    </div>
+  )}
+  {automacoes.map((auto, idx) => (
+    <CardAutomacao
+      key={idx}
+      statusColuna={auto.statusColuna}
+      nome={auto.nome}
+      ativa={auto.ativa}
+      canal={auto.canal}
+      horario={auto.horario}
+      mensagens={auto.mensagens}
+      onToggleAtiva={() => {/* implementar depois */}}
+      onEditar={() => {/* implementar depois */}}
+      onExcluir={() =>
+        setAutomacoes(automacoes.filter((a, i) => i !== idx))
+      }
+      onAdicionarMensagem={() => {
+        // Vamos implementar a seguir!
+      }}
+    />
+  ))}
 </div>
+
 
         <div style={{
           background: "#fffbe6",
@@ -203,8 +205,9 @@ const renderConteudo = () => {
   onClose={() => setModalNovaAutomacaoOpen(false)}
   onSalvar={(automacao) => {
     setModalNovaAutomacaoOpen(false);
-    alert("Automação criada!\n" + JSON.stringify(automacao, null, 2));
+    setAutomacoes(prev => [...prev, { ...automacao, mensagens: [] }]);
   }}
+  
 />
 
       </div>
