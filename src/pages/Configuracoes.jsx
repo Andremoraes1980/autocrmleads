@@ -6,7 +6,7 @@ import { supabase } from "../lib/supabaseClient";
 import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoLivre";
 import CardAutomacao from "../components/automacoes/CardAutomacao";
 import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
-const [automacoes, setAutomacoes] = useState([]);
+
 
 
 
@@ -27,6 +27,7 @@ const usuarioLocal = JSON.parse(localStorage.getItem("usuario") || "{}");
 const [modalWebmotorsOpen, setModalWebmotorsOpen] = useState(false);
 const [webmotorsStatus, setWebmotorsStatus] = useState(""); // "aguardando", "conectado", "desconectado
 const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
+const [automacoes, setAutomacoes] = useState([]);
 
 
 

@@ -115,7 +115,7 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
             Cancelar
           </button>
           <button
-            onClick={() => onSalvar({ nome, statusColuna, ativa, canal, horario })}
+            onClick={() => onSalvar({ nome, statusColuna, ativa, })}
 
             style={{
               background: "#16a34a", color: "#fff", border: "none",
