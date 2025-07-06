@@ -216,6 +216,44 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
   }
 });
 
+// --- Rota: Listar automações (por revenda) ---
+app.get('/api/automacoes', async (req, res) => {
+  const { revenda_id } = req.query;
+  if (!revenda_id) return res.status(400).json({ error: "revenda_id obrigatório" });
+
+  const { data, error } = await supabase
+    .from('automacoes_leads')
+    .select('*')
+    .eq('revenda_id', revenda_id)
+    .order('criado_em', { ascending: false });
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
+// --- Rota: Criar nova automação ---
+app.post('/api/automacoes', async (req, res) => {
+  const { nome, status_coluna, ativa, canais, template_id, revenda_id } = req.body;
+  if (!nome || !status_coluna || !revenda_id) {
+    return res.status(400).json({ error: "Campos obrigatórios não preenchidos." });
+  }
+
+  const { data, error } = await supabase
+    .from('automacoes_leads')
+    .insert([
+      { nome, status_coluna, ativa, canais, template_id, revenda_id }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
 
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;

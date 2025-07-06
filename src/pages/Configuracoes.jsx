@@ -1,5 +1,5 @@
 // src/pages/Configuracoes.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import Layout from "../components/Layout";
 import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
@@ -7,10 +7,7 @@ import IntegracaoMercadoLivre from "../components/integracoes/IntegracaoMercadoL
 import CardAutomacao from "../components/automacoes/CardAutomacao";
 import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
 import ModalMensagemAutomacao from "../components/automacoes/ModalMensagemAutomacao";
-
-
-
-
+import ModalNovoTemplate from "../components/ModalNovoTemplate";
 
 
 
@@ -32,8 +29,27 @@ const [modalNovaAutomacaoOpen, setModalNovaAutomacaoOpen] = useState(false);
 const [automacoes, setAutomacoes] = useState([]);
 const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
 const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
+const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 
+// Função para buscar automações do backend
+async function carregarAutomacoes() {
+  const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  if (!usuario.revenda_id) return; // ou mostrar alerta
+  try {
+    const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes?revenda_id=${usuario.revenda_id}`);
+    const lista = await resp.json();
+    setAutomacoes(lista);
+  } catch (err) {
+    console.error("Erro ao carregar automações:", err);
+  }
+}
 
+// Carregar automações quando abrir a aba
+useEffect(() => {
+  if (abaAtiva === "automacoes") {
+    carregarAutomacoes();
+  }
+}, [abaAtiva]);
 
 
 
@@ -137,9 +153,137 @@ window.location.href = url;};
 
 const renderConteudo = () => {
   if (abaAtiva === "dados-revenda") {
-    // ... (igual está)
+    return (
+      <div className={styles.abaConteudo}>
+        <h3>Dados da Revenda</h3>
+        <form className={styles.formRevenda} onSubmit={salvarRevenda}>
+          <label>Nome da Revenda:</label>
+          <input
+            placeholder="Digite o nome da revenda..."
+            value={nome}
+            onChange={(e) => setNome(e.target.value)}
+            className={styles.formInput}
+          />
+
+          <label>Endereço:</label>
+          <input
+            placeholder="Digite o endereço..."
+            value={endereco}
+            onChange={(e) => setEndereco(e.target.value)}
+            className={styles.formInput}
+          />
+
+          <label>Telefone:</label>
+          <input
+            type="text"
+            placeholder="(11) 98765-4321"
+            value={telefone}
+            onChange={(e) => setTelefone(formatarTelefone(e.target.value))}
+            className={styles.formInput}
+          />
+
+          <label>Instagram:</label>
+          <input
+            placeholder="@sua_loja"
+            value={instagram}
+            onChange={(e) => setInstagram(e.target.value)}
+            className={styles.formInput}
+          />
+
+          <label>Site:</label>
+          <input
+            placeholder="https://www.sualoja.com.br"
+            value={site}
+            onChange={(e) => setSite(e.target.value)}
+            className={styles.formInput}
+          />
+
+          <label>Facebook:</label>
+          <input
+            placeholder="https://www.facebook.com/sualoja"
+            value={facebook}
+            onChange={(e) => setFacebook(e.target.value)}
+            className={styles.formInput}
+          />
+
+          <button type="submit" className={styles.botaoSalvar}>Salvar</button>
+        </form>
+      </div>
+    );
   } else if (abaAtiva === "integracoes") {
-    // ... (igual está)
+    return (
+      <div className={styles.abaConteudo}>
+        <h3>Integrações com Classificados</h3>
+        <div style={{ display: "flex", gap: "24px", flexWrap: "wrap" }}>
+          {/* OLX */}
+          <div className={styles.cardIntegracao}>
+            <img src="/olx.png" alt="OLX" style={{ width: 56 }} />
+            <div>OLX</div>
+            <button className={styles.botaoConectar} disabled>Conectar</button>
+          </div>
+          
+          {/* Webmotors */}
+<div className={styles.cardIntegracao}>
+  <img src="/webmotors.png" alt="Webmotors" style={{ width: 56 }} />
+  <div>Webmotors</div>
+  {webmotorsStatus === "conectado" ? (
+    <span style={{ color: "green", fontWeight: "bold" }}>Conectado</span>
+  ) : webmotorsStatus === "aguardando" ? (
+    <span style={{ color: "#E67E22", fontWeight: "bold" }}>Aguardando Lead...</span>
+  ) : (
+    <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(true)}>
+      Conectar
+    </button>
+  )}
+
+  {/* Modal de instrução */}
+  {modalWebmotorsOpen && (
+    <div className={styles.modalOverlay}>
+      <div className={styles.modalContent}>
+        <h4>Integração Webmotors</h4>
+        <ol>
+          <li>Acesse o painel Webmotors da sua loja.</li>
+          <li>No campo <b>Callback URL Leads</b>, cole este endereço:<br />
+            <code style={{ background: "#f5f5f5", padding: "2px 6px" }}>
+              https://autocrm-backend.onrender.com/api/webmotors-leads
+            </code>
+            <button
+              style={{ marginLeft: 8, padding: "2px 10px", cursor: "pointer" }}
+              onClick={() =>
+                navigator.clipboard.writeText("https://autocrm-backend.onrender.com/api/webmotors-leads")
+              }
+            >Copiar</button>
+          </li>
+          <li>Salve e teste o envio de um lead de teste.</li>
+          <li>Depois, clique em <b>“Já cadastrei”</b> abaixo.</li>
+        </ol>
+        <div style={{ display: "flex", gap: 16 }}>
+          <button className={styles.botaoConectar} onClick={handleJaCadastreiWebmotors}>
+            Já cadastrei
+          </button>
+          <button className={styles.botaoConectar} onClick={() => setModalWebmotorsOpen(false)}>
+            Cancelar
+          </button>
+        </div>
+      </div>
+    </div>
+  )}
+</div>
+
+          
+          {/* Mercado Livre */}
+          <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
+
+
+          {/* Autoline */}
+          <div className={styles.cardIntegracao}>
+            <img src="/autoline.png" alt="Autoline" style={{ width: 56 }} />
+            <div>Autoline</div>
+            <button className={styles.botaoConectar} disabled>Conectar</button>
+          </div>
+        </div>
+      </div>
+    );
   } else if (abaAtiva === "automacoes") {
     return (
       <div className={styles.abaConteudo}>
@@ -216,8 +360,6 @@ const renderConteudo = () => {
   />
 )}
 
-
-
         <div style={{
           background: "#fffbe6",
           border: "1px solid #ffe58f",
@@ -234,16 +376,56 @@ const renderConteudo = () => {
         <ModalNovaAutomacao
   open={modalNovaAutomacaoOpen}
   onClose={() => setModalNovaAutomacaoOpen(false)}
-  onSalvar={(automacao) => {
+  onSalvar={async (automacao) => {
+    await salvarAutomacao(automacao);
     setModalNovaAutomacaoOpen(false);
-    setAutomacoes(prev => [...prev, { ...automacao, mensagens: [] }]);
   }}
   
 />
 
       </div>
     );
-  } else {
+    } 
+    else if (abaAtiva === "templates") {
+      return (
+        <div className={styles.abaConteudo}>
+          <h3>Templates de Mensagem</h3>
+          <button
+            onClick={() => setModalNovoTemplateOpen(true)}
+            style={{
+              background: "#2563eb",
+              color: "#fff",
+              border: "none",
+              borderRadius: 8,
+              fontWeight: 600,
+              fontSize: 16,
+              padding: "10px 22px",
+              marginBottom: 18,
+              cursor: "pointer",
+              boxShadow: "0 2px 4px rgba(0,0,0,0.07)"
+            }}
+          >
+            + Novo Template
+          </button>
+          <ModalNovoTemplate
+  aberto={modalNovoTemplateOpen}
+  onClose={() => setModalNovoTemplateOpen(false)}
+  onSalvar={dados => {
+    console.log("Dados do novo template:", dados);
+  }}
+/>
+
+          <p>
+            Gerencie aqui seus templates de mensagem para uso em canais como WhatsApp, e-mail, etc. 
+          </p>
+          {/* Aqui listaremos os templates cadastrados */}
+          <div style={{ marginTop: 28 }}>
+            {/* TODO: Listagem dos templates */}
+          </div>
+        </div>
+      );}
+
+    else {
     return (
       <div className={styles.abaConteudo}>
         <h3>Outras Configurações</h3>
@@ -289,6 +471,15 @@ const renderConteudo = () => {
   >
     Automação
   </button>
+
+  <button
+    className={`${styles.aba} ${abaAtiva === "templates" ? styles.abaAtiva : ""}`}
+    onClick={() => setAbaAtiva("templates")}
+  >
+    Templates
+  </button>
+
+
 </div>
 
           {renderConteudo()}

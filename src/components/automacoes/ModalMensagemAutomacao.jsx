@@ -2,12 +2,24 @@ import React, { useState } from "react";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
+
+
 export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
   const [texto, setTexto] = useState("");
   const [tempo, setTempo] = useState("");
-  const [canal, setCanal] = useState("");
+  const [canais, setCanais] = useState([]); // Agora é um array!
   const [ativa, setAtiva] = useState(true);
   const [showEmoji, setShowEmoji] = useState(false);
+  const [horario, setHorario] = useState("");
+  const [templateSelecionado, setTemplateSelecionado] = useState("");
+// Exemplo de mock dos templates aprovados, substitua pelo fetch real no futuro
+const [templatesAprovados, setTemplatesAprovados] = useState([
+  { id: "tpl1", nome: "Recuperação de contato" },
+  { id: "tpl2", nome: "Nova Proposta" },
+  { id: "tpl3", nome: "Acompanhamento" },
+]);
+
+
 
   // Lista dos placeholders personalizados
   const placeholders = [
@@ -86,19 +98,20 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
             >😃</button>
             {/* Emoji Picker */}
             {showEmoji && (
-              <div style={{ position: "absolute", top: 38, right: 0, zIndex: 20 }}>
-                <EmojiPicker
-                  onEmojiClick={(emoji) => {
-                    setTexto(texto + emoji.emoji);
-                    setShowEmoji(false);
-                  }}
-                  autoFocusSearch={false}
-                  width={320}
-                  height={330}
-                  theme="light"
-                />
-              </div>
-            )}
+  <div style={{ position: "absolute", top: 38, right: 0, zIndex: 20 }}>
+    <Picker
+      data={data}
+      onEmojiSelect={(emoji) => setTexto(texto + (emoji.native || emoji.emoji))}
+      locale="pt"
+      previewPosition="none"
+      theme="light"
+      navPosition="top"
+      maxFrequentRows={2}
+      searchPosition="top"
+    />
+  </div>
+)}
+
           </div>
           {/* Botões dos placeholders */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 7, marginTop: 8 }}>
@@ -124,11 +137,36 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
           </div>
         </label>
 
-<label>
-  Horário para disparo
+        <label style={{ display: "block", marginTop: 18 }}>
+  Template WhatsApp aprovado
   <select
-    value={tempo}
-    onChange={e => setTempo(e.target.value)}
+    value={templateSelecionado}
+    onChange={e => setTemplateSelecionado(e.target.value)}
+    style={{
+      width: "100%",
+      padding: 8,
+      borderRadius: 8,
+      marginTop: 4,
+      border: "1px solid #d1d5db",
+      fontSize: 16,
+    }}
+  >
+    <option value="">Selecione um template...</option>
+    {templatesAprovados.map(tpl => (
+      <option key={tpl.id} value={tpl.id}>
+        {tpl.nome} {/* ou tpl.nomeExibicao */}
+      </option>
+    ))}
+  </select>
+</label>
+
+
+        <label>
+  Horário para disparo
+  <input
+    type="time"
+    value={horario}
+    onChange={e => setHorario(e.target.value)}
     style={{
       width: "120px",
       marginTop: 4,
@@ -137,44 +175,58 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
       borderRadius: 8,
       border: "1px solid #d1d5db"
     }}
-  >
-    <option value="">Selecione...</option>
-    <option value="08:00">08:00</option>
-    <option value="09:00">09:00</option>
-    <option value="10:00">10:00</option>
-    <option value="11:00">11:00</option>
-    <option value="12:00">12:00</option>
-    <option value="13:00">13:00</option>
-    <option value="14:00">14:00</option>
-    <option value="15:00">15:00</option>
-    <option value="16:00">16:00</option>
-    <option value="17:00">17:00</option>
-    <option value="18:00">18:00</option>
-    <option value="19:00">19:00</option>
-    <option value="20:00">20:00</option>
-  </select>
+  />
 </label>
 
-          <label>
-            Canal de envio
-            <select
-              value={canal}
-              onChange={e => setCanal(e.target.value)}
-              style={{
-                width: "120px",
-                marginTop: 4,
-                padding: 8,
-                fontSize: 16,
-                borderRadius: 8,
-                border: "1px solid #d1d5db"
-              }}
-            >
-              <option value="">Selecione...</option>
-              <option value="chat">Chat</option>
-              <option value="whatsapp">WhatsApp</option>
-              <option value="email">E-mail</option>
-            </select>
-          </label>
+
+<label>
+  Canal de envio
+  <div style={{ display: "flex", gap: 18, marginTop: 4 }}>
+    <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <input
+        type="checkbox"
+        checked={canais.includes("chat")}
+        onChange={e => {
+          setCanais(prev =>
+            e.target.checked
+              ? [...prev, "chat"]
+              : prev.filter(c => c !== "chat")
+          );
+        }}
+      />
+      Chat
+    </label>
+    <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <input
+        type="checkbox"
+        checked={canais.includes("whatsapp")}
+        onChange={e => {
+          setCanais(prev =>
+            e.target.checked
+              ? [...prev, "whatsapp"]
+              : prev.filter(c => c !== "whatsapp")
+          );
+        }}
+      />
+      WhatsApp
+    </label>
+    <label style={{ display: "flex", alignItems: "center", gap: 5 }}>
+      <input
+        type="checkbox"
+        checked={canais.includes("email")}
+        onChange={e => {
+          setCanais(prev =>
+            e.target.checked
+              ? [...prev, "email"]
+              : prev.filter(c => c !== "email")
+          );
+        }}
+      />
+      E-mail
+    </label>
+  </div>
+</label>
+
           <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <input
               type="checkbox"
@@ -197,7 +249,7 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
           </button>
           <button
             onClick={() => {
-              onSalvar({ texto, tempo, canal, ativa });
+              onSalvar({ texto, tempo, canais, ativa });
             }}
             style={{
               background: "#3b82f6", color: "#fff", border: "none",

@@ -5,6 +5,24 @@ export default function ModalNovaAutomacao({ open, onClose, onSalvar }) {
   const [statusColuna, setStatusColuna] = useState("");
   const [ativa, setAtiva] = useState(true);
 
+  // Ao salvar nova automação
+async function salvarAutomacao(dados) {
+  try {
+    const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+    const resp = await fetch("https://autocrm-backend.onrender.com/api/automacoes", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ ...dados, revenda_id: usuario.revenda_id })
+    });
+    const nova = await resp.json();
+    setAutomacoes(prev => [nova, ...prev]);
+  } catch (err) {
+    console.error("Erro ao salvar automação:", err);
+    alert("Erro ao salvar automação!");
+  }
+}
+
+
   const colunasStatus = [
     { value: "nova_proposta", label: "Nova Proposta" },
     { value: "nao_respondido", label: "Não Respondido" },
