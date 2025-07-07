@@ -133,7 +133,7 @@ async function salvarAutomacao(dados) {
             Cancelar
           </button>
           <button
-            onClick={() => onSalvar({ nome, statusColuna, ativa, })}
+            onClick={() => onSalvar({ nome, status_coluna, ativa, })}
 
             style={{
               background: "#16a34a", color: "#fff", border: "none",
