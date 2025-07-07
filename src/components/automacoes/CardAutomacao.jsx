@@ -8,20 +8,7 @@ export default function CardAutomacao({
   nome = "Automação Exemplo",
   ativa = true,
   mensagens = [
-    {
-      id: 1,
-      texto: "Olá {{nome}}, vi que ficou com dúvidas.",
-      tempo: "10min",
-      status: "pendente", // "pendente", "executada", "erro"
-      ativa: true,
-    },
-    {
-      id: 2,
-      texto: "Posso ajudar em algo?",
-      tempo: "2h",
-      status: "pendente",
-      ativa: false,
-    },
+    
   ],
   onToggleAtiva,
   onEditar,
