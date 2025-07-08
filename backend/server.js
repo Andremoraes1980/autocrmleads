@@ -255,6 +255,67 @@ app.post('/api/automacoes', async (req, res) => {
   res.json(data);
 });
 
+// Salva nova mensagem automática
+app.post('/api/automacoes-mensagens', async (req, res) => {
+  const {
+    texto,
+    template_id,
+    canal,
+    horario,
+    ativa,
+    ordem,
+    automacao_id,
+    // outros campos opcionais
+  } = req.body;
+
+  // Log para depuração
+  console.log("Recebendo nova mensagem automática:", req.body);
+
+  // Insere no Supabase
+  const { data, error } = await supabase
+    .from('automacoes_mensagens')
+    .insert([
+      {
+        texto,
+        template_id,
+        canal,
+        horario,
+        ativa,
+        ordem,
+        automacao_id,
+        // outros campos opcionais
+      }
+    ])
+    .select(); // Para retornar o objeto salvo
+
+  if (error) {
+    console.error("Erro ao salvar mensagem automática:", error);
+    return res.status(400).json({ error: error.message });
+  }
+  res.json(data[0]);
+});
+
+app.get('/api/templates', async (req, res) => {
+  const status = req.query.status || 'aprovado'; // permite filtrar por status se quiser
+
+  try {
+    const { data, error } = await supabase
+      .from('templates')
+      .select('*')
+      .eq('status', status);
+
+    if (error) {
+      console.error("Erro ao buscar templates:", error);
+      return res.status(500).json({ error: error.message });
+    }
+    res.json(data);
+  } catch (err) {
+    console.error("Erro inesperado ao buscar templates:", err);
+    res.status(500).json({ error: 'Erro inesperado no backend.' });
+  }
+});
+
+
 
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;

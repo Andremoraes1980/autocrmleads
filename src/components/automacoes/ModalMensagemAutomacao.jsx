@@ -12,6 +12,28 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
   const [showEmoji, setShowEmoji] = useState(false);
   const [horario, setHorario] = useState("");
   const [templateSelecionado, setTemplateSelecionado] = useState("");
+  const [templateId, setTemplateId] = useState(null);
+  const [templates, setTemplates] = useState([]);
+
+  useEffect(() => {
+    async function fetchTemplates() {
+      try {
+        const resp = await fetch("https://autocrm-backend.onrender.com/api/templates?status=aprovado");
+        const lista = await resp.json();
+        setTemplates(lista);
+      } catch (err) {
+        console.error("Erro ao buscar templates:", err);
+        setTemplates([]); // fallback para lista vazia
+      }
+    }
+    if (open) { // só busca quando modal abrir
+      fetchTemplates();
+    }
+  }, [open]);
+  
+  
+
+
 // Exemplo de mock dos templates aprovados, substitua pelo fetch real no futuro
 const [templatesAprovados, setTemplatesAprovados] = useState([
   { id: "tpl1", nome: "Recuperação de contato" },
@@ -167,28 +189,27 @@ const handleSalvarMensagem = async () => {
           </div>
         </label>
 
-        <label style={{ display: "block", marginTop: 18 }}>
-  Template WhatsApp aprovado
+        <label>
+  Template aprovado (opcional)
   <select
-    value={templateSelecionado}
-    onChange={e => setTemplateSelecionado(e.target.value)}
+    value={templateId || ""}
+    onChange={e => setTemplateId(e.target.value || null)}
     style={{
       width: "100%",
-      padding: 8,
-      borderRadius: 8,
       marginTop: 4,
-      border: "1px solid #d1d5db",
+      padding: 8,
       fontSize: 16,
+      borderRadius: 8,
+      border: "1px solid #d1d5db"
     }}
   >
     <option value="">Selecione um template...</option>
-    {templatesAprovados.map(tpl => (
-      <option key={tpl.id} value={tpl.id}>
-        {tpl.nome} {/* ou tpl.nomeExibicao */}
-      </option>
+    {templates.map(tpl => (
+      <option key={tpl.id} value={tpl.id}>{tpl.nome}</option>
     ))}
   </select>
 </label>
+
 
 
         <label>
