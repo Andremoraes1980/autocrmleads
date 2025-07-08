@@ -79,10 +79,12 @@ async function salvarAutomacao(dados) {
 // Função para buscar automações do backend
 async function carregarAutomacoes() {
   const usuario = JSON.parse(localStorage.getItem("usuario") || "{}");
+  
   if (!usuario.revenda_id) return; // ou mostrar alerta
   try {
     const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes?revenda_id=${usuario.revenda_id}`);
     const lista = await resp.json();
+    console.log("AUTOMAÇÕES RECEBIDAS:", lista); // <-- Adicione esta linha!
     setAutomacoes(lista);
   } catch (err) {
     console.error("Erro ao carregar automações:", err);
