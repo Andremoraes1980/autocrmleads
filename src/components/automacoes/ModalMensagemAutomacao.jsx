@@ -64,7 +64,7 @@ const handleSalvarMensagem = async () => {
     canais,
     horario,
     ativa,
-    ordem,
+    ordem: 1,
     automacao_id,
     // outros campos...
   };
