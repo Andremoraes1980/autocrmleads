@@ -73,93 +73,59 @@ export default function CardAutomacao({
       </div>
 
       <div style={{ marginLeft: 10, marginTop: 12 }}>
-      console.log("mensagens recebidas pelo CardAutomacao:", mensagens);
-      {mensagens.map((msg) => (
-  <div
-    key={msg.id}
-    style={{
-      display: "flex",
-      alignItems: "center",
-      gap: 14,
-      marginBottom: 10,
-      background: "#f9fafb",
-      borderRadius: 8,
-      padding: "7px 12px",
-      minHeight: 36,
-      position: "relative"
-    }}
-  >
-    {/* Mensagem (com tooltip se hover) */}
-    <span
-      style={{
-        fontSize: 15,
-        color: msg.ativa ? "#222" : "#bbb",
-        maxWidth: 180,
-        whiteSpace: "nowrap",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
-        cursor: "pointer",
-      }}
-      title={msg.texto} // Tooltip nativo
-    >
-      {msg.texto}
-    </span>
-
-    {/* Canal */}
-    <span style={{ fontSize: 17, marginLeft: 6 }}>
-      {msg.canal === "whatsapp" ? "📱" : msg.canal === "email" ? "✉️" : "🔔"}
-    </span>
-
-    {/* Horário */}
-    <span style={{ color: "#888", fontSize: 14, minWidth: 50, textAlign: "center" }}>
-      {msg.tempo || msg.horario}
-    </span>
-
-    {/* Ativa */}
-    <label style={{ marginLeft: 10, cursor: "pointer", fontSize: 14, userSelect: "none" }}>
-      <input
-        type="checkbox"
-        checked={msg.ativa}
-        style={{ accentColor: "#16a34a" }}
-        readOnly
-      />{" "}
-      Ativa
-    </label>
-
-    {/* Editar */}
-    <button
-      onClick={() => onEditar(msg)}
-      title="Editar"
-      style={{
-        marginLeft: 14,
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontSize: 19,
-        color: "#2563eb",
-      }}
-    >
-      ✏️
-    </button>
-
-    {/* Excluir */}
-    <button
-      onClick={() => onExcluir(msg)}
-      title="Excluir"
-      style={{
-        marginLeft: 4,
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontSize: 19,
-        color: "#dc2626",
-      }}
-    >
-      🗑️
-    </button>
-  </div>
-))}
-
+       {mensagens.map ((msg) => (
+          <div
+            key={msg.id}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 10,
+              background: "#f9fafb",
+              borderRadius: 8,
+              padding: "7px 12px",
+            }}
+          >
+            {/* Farol de status */}
+            <span
+              style={{
+                display: "inline-block",
+                width: 15,
+                height: 15,
+                borderRadius: "50%",
+                background:
+                  msg.status === "pendente"
+                    ? "#facc15" // amarelo
+                    : msg.status === "executada"
+                    ? "#16a34a" // verde
+                    : "#dc2626", // vermelho
+                marginRight: 8,
+                border: "1px solid #e2e8f0",
+              }}
+              title={
+                msg.status === "pendente"
+                  ? "Agendado"
+                  : msg.status === "executada"
+                  ? "Enviado"
+                  : "Erro"
+              }
+            ></span>
+            <span style={{ fontSize: 15, color: msg.ativa ? "#222" : "#bbb" }}>
+              {msg.texto}
+            </span>
+            <span style={{ color: "#888", fontSize: 14, marginLeft: "auto" }}>{msg.tempo}</span>
+            <label style={{ marginLeft: 8, cursor: "pointer", fontSize: 14 }}>
+              <input
+                type="checkbox"
+                checked={msg.ativa}
+                style={{ accentColor: "#16a34a" }}
+                readOnly
+              />{" "}
+              Ativa
+            </label>
+          </div>
+           
+           ))}
 
            {/* Adicione este botão AQUI */}
 <button
