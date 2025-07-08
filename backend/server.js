@@ -333,6 +333,32 @@ app.get('/api/templates', async (req, res) => {
   }
 });
 
+// ROTA: Criar novo template
+app.post('/api/templates', async (req, res) => {
+  const { nome, conteudo, status } = req.body;
+  if (!nome || !conteudo) {
+    return res.status(400).json({ error: "Campos obrigatórios: nome, conteudo" });
+  }
+  const { data, error } = await supabase
+    .from('templates')
+    .insert([
+      {
+        nome,
+        conteudo,
+        status: status || "pendente",
+        // Os campos criado_em/atualizado_em já são preenchidos pelo default do banco!
+      }
+    ])
+    .select()
+    .single();
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
+
 
 
 

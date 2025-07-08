@@ -10,17 +10,43 @@ function ModalNovoTemplate({ aberto, onClose, onSalvar }) {
   const [showEmoji, setShowEmoji] = React.useState(false);
 
 
-  function handleSalvar() {
+  async function handleSalvar() {
     if (!nome.trim() || !conteudo.trim()) {
       alert("Preencha todos os campos!");
       return;
     }
-    onSalvar({ nome, conteudo, canal });
-    setNome("");
-    setConteudo("");
-    setCanal("whatsapp");
-    onClose();
+  
+    try {
+      const resp = await fetch("https://autocrm-backend.onrender.com/api/templates", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome,
+          conteudo,
+          status: "pendente" // ou outro status, se quiser permitir escolha
+        }),
+      });
+      const data = await resp.json();
+  
+      if (!resp.ok) {
+        alert("Erro ao salvar template: " + (data.error || "Erro desconhecido"));
+        return;
+      }
+  
+      // Chama o callback do pai passando o novo template salvo (com id do banco)
+      if (onSalvar) onSalvar(data);
+  
+      setNome("");
+      setConteudo("");
+      setCanal("whatsapp");
+      onClose();
+  
+    } catch (err) {
+      alert("Erro de conexão ao salvar template!");
+      console.error(err);
+    }
   }
+  
 
   if (!aberto) return null;
   return (
