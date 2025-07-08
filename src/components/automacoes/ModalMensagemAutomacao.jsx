@@ -60,7 +60,7 @@ const [templatesAprovados, setTemplatesAprovados] = useState([
 const handleSalvarMensagem = async () => {
   const novaMensagem = {
     texto,
-    template_id,
+    template_id: templateId || null,
     canal,
     horario,
     ativa,
@@ -204,8 +204,8 @@ const handleSalvarMensagem = async () => {
     }}
   >
     <option value="">Selecione um template...</option>
-    {templates.map(tpl => (
-      <option key={tpl.id} value={tpl.id}>{tpl.nome}</option>
+    {templates.map(tmp => (
+    <option value={tmp.id} key={tmp.id}>{tmp.nome}</option>
     ))}
   </select>
 </label>
