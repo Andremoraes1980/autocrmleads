@@ -61,7 +61,7 @@ const handleSalvarMensagem = async () => {
   const novaMensagem = {
     texto,
     template_id: templateId || null,
-    canal,
+    canais,
     horario,
     ativa,
     ordem,
