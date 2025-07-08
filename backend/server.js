@@ -295,6 +295,24 @@ app.post('/api/automacoes-mensagens', async (req, res) => {
   res.json(data[0]);
 });
 
+// GET: Listar mensagens automáticas por automacao_id
+app.get('/api/automacoes-mensagens', async (req, res) => {
+  const { automacao_id } = req.query;
+  if (!automacao_id) return res.status(400).json({ error: "automacao_id obrigatório" });
+
+  const { data, error } = await supabase
+    .from('automacoes_mensagens')
+    .select('*')
+    .eq('automacao_id', automacao_id)
+    .order('ordem', { ascending: true });
+
+  if (error) {
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
+
 app.get('/api/templates', async (req, res) => {
   const status = req.query.status || 'aprovado'; // permite filtrar por status se quiser
 
@@ -314,6 +332,8 @@ app.get('/api/templates', async (req, res) => {
     res.status(500).json({ error: 'Erro inesperado no backend.' });
   }
 });
+
+
 
 
 
