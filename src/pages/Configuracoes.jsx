@@ -376,6 +376,7 @@ const renderConteudo = () => {
       setModalMensagemOpen(false);
       setIndiceAutomacaoSelecionada(null);
     }}
+    automacao_id={automacoes[indiceAutomacaoSelecionada]?.id}
   />
 )}
 

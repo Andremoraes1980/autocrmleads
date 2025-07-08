@@ -4,7 +4,7 @@ import Picker from '@emoji-mart/react';
 
 
 
-export default function ModalMensagemAutomacao({ open, onClose, onSalvar }) {
+export default function ModalMensagemAutomacao({ open, onClose, onSalvar, automacao_id }) {
   const [texto, setTexto] = useState("");
   const [tempo, setTempo] = useState("");
   const [canais, setCanais] = useState([]); // Agora é um array!
