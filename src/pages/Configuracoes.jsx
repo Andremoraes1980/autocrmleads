@@ -357,13 +357,32 @@ const renderConteudo = () => {
           Gerencie aqui as mensagens automáticas para cada etapa do seu funil.
         </p>
         <div style={{ marginTop: 28 }}>
-  {automacoes.length === 0 && (
+  {automacoes.length === 0 ? (
     <div style={{ color: "#888", marginTop: 18, fontSize: 16 }}>
       Nenhuma automação cadastrada ainda.
     </div>
+  ) : (
+    automacoes.map((auto, idx) => (
+      <CardAutomacao
+        key={auto.id || idx}
+        statusColuna={auto.status_coluna}
+        nome={auto.nome}
+        ativa={auto.ativa}
+        canal={auto.canal}
+        horario={auto.horario}
+        mensagens={mensagensPorAutomacao[auto.id] || []}
+        onToggleAtiva={() => {/* implementar depois */}}
+        onEditar={() => {/* implementar depois */}}
+        onExcluir={() =>
+          setAutomacoes(automacoes.filter((a, i) => i !== idx))
+        }
+        onAdicionarMensagem={() => {
+          setModalMensagemOpen(true);
+          setIndiceAutomacaoSelecionada(idx);
+        }}
+      />
+    ))
   )}
-  
-
 </div>
 
 {modalMensagemOpen && (
