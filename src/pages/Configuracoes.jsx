@@ -31,6 +31,13 @@ const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
 const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
 const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
+const [templates, setTemplates] = useState([]);
+
+function handleAdicionarTemplate(template) {
+  setTemplates(prev => [template, ...prev]);
+}
+
+
 
 useEffect(() => {
   if (automacoes.length === 0) return;
@@ -454,14 +461,29 @@ const renderConteudo = () => {
             }}
           >
             + Novo Template
+            <div style={{ marginTop: 28 }}>
+  {templates.length === 0 ? (
+    <div style={{ color: "#888", fontSize: 16 }}>
+      Nenhum template cadastrado ainda.
+    </div>
+  ) : (
+    templates.map(tmp => (
+      <div key={tmp.id} style={{ marginBottom: 16, background: "#f9fafb", borderRadius: 8, padding: "14px 20px" }}>
+        <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 4 }}>{tmp.nome}</div>
+        <div style={{ color: "#666", marginBottom: 8, fontSize: 15 }}>{tmp.conteudo}</div>
+        <div style={{ color: "#aaa", fontSize: 13 }}>Status: {tmp.status}</div>
+      </div>
+    ))
+  )}
+</div>
+
           </button>
           <ModalNovoTemplate
   aberto={modalNovoTemplateOpen}
   onClose={() => setModalNovoTemplateOpen(false)}
-  onSalvar={dados => {
-    console.log("Dados do novo template:", dados);
-  }}
+  onSalvar={handleAdicionarTemplate}
 />
+
 
           <p>
             Gerencie aqui seus templates de mensagem para uso em canais como WhatsApp, e-mail, etc. 
