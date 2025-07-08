@@ -260,7 +260,7 @@ app.post('/api/automacoes-mensagens', async (req, res) => {
   const {
     texto,
     template_id,
-    canal,
+    canais,
     horario,
     ativa,
     ordem,
@@ -278,7 +278,7 @@ app.post('/api/automacoes-mensagens', async (req, res) => {
       {
         texto,
         template_id,
-        canal,
+        canais,
         horario,
         ativa,
         ordem,
