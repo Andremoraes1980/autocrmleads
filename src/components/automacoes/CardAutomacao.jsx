@@ -73,6 +73,7 @@ export default function CardAutomacao({
       </div>
 
       <div style={{ marginLeft: 10, marginTop: 12 }}>
+      console.log("mensagens recebidas pelo CardAutomacao:", mensagens);
       {mensagens.map((msg) => (
   <div
     key={msg.id}
