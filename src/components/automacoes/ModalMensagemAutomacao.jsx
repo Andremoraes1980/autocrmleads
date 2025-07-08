@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
 
