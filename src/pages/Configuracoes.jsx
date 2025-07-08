@@ -30,6 +30,32 @@ const [automacoes, setAutomacoes] = useState([]);
 const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
 const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
 const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
+const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
+
+useEffect(() => {
+  if (automacoes.length === 0) return;
+
+  // Busca as mensagens de cada automação
+  automacoes.forEach(auto => {
+    if (!auto.id) return; // evita erro se id não existir
+    fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${auto.id}`)
+      .then(r => r.json())
+      .then(msgs => {
+        setMensagensPorAutomacao(prev => ({
+          ...prev,
+          [auto.id]: msgs
+        }));
+      })
+      .catch(err => {
+        console.error("Erro ao buscar mensagens:", err);
+        setMensagensPorAutomacao(prev => ({
+          ...prev,
+          [auto.id]: []
+        }));
+      });
+  });
+}, [automacoes]);
+
 
 async function salvarAutomacao(dados) {
   try {
@@ -334,27 +360,109 @@ const renderConteudo = () => {
       Nenhuma automação cadastrada ainda.
     </div>
   )}
-  {automacoes.map((auto, idx) => (
-    <CardAutomacao
-      key={idx}
-      statusColuna={auto.status_coluna}
-      nome={auto.nome}
-      ativa={auto.ativa}
-      canal={auto.canal}
-      horario={auto.horario}
-      mensagens={auto.mensagens}
-      onToggleAtiva={() => {/* implementar depois */}}
-      onEditar={() => {/* implementar depois */}}
-      onExcluir={() =>
-        setAutomacoes(automacoes.filter((a, i) => i !== idx))
-      }
-      onAdicionarMensagem={() => {
-        setModalMensagemOpen(true);
-        setIndiceAutomacaoSelecionada(idx); // idx é o índice do map
-        // Vamos implementar a seguir!
+  {mensagens.map((msg) => (
+  <div
+    key={msg.id}
+    style={{
+      display: "flex",
+      alignItems: "center",
+      gap: 14,
+      marginBottom: 10,
+      background: "#f9fafb",
+      borderRadius: 8,
+      padding: "7px 12px",
+      minHeight: 36,
+      position: "relative"
+    }}
+  >
+    {/* Mensagem (com tooltip se hover) */}
+    <span
+      style={{
+        fontSize: 15,
+        color: msg.ativa ? "#222" : "#bbb",
+        maxWidth: 180,
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
+        cursor: "pointer",
       }}
-    />
-  ))}
+      title={msg.texto} // Tooltip nativo
+    >
+      {msg.texto}
+    </span>
+
+    {/* Canal */}
+    <span style={{ fontSize: 17, marginLeft: 6 }}>
+    {Array.isArray(msg.canais)
+  ? msg.canais.map(canal => (
+      <span key={canal} style={{ marginRight: 2 }}>
+        {canal === "whatsapp"
+          ? "📱"
+          : canal === "email"
+          ? "✉️"
+          : canal === "chat"
+          ? "💬"
+          : "🔔"}
+      </span>
+    ))
+  : (msg.canal === "whatsapp"
+      ? "📱"
+      : msg.canal === "email"
+      ? "✉️"
+      : "🔔")}
+
+    </span>
+
+    {/* Horário */}
+    <span style={{ color: "#888", fontSize: 14, minWidth: 50, textAlign: "center" }}>
+      {msg.tempo || msg.horario}
+    </span>
+
+    {/* Ativa */}
+    <label style={{ marginLeft: 10, cursor: "pointer", fontSize: 14, userSelect: "none" }}>
+      <input
+        type="checkbox"
+        checked={msg.ativa}
+        style={{ accentColor: "#16a34a" }}
+        readOnly
+      />{" "}
+      Ativa
+    </label>
+
+    {/* Editar */}
+    <button
+      onClick={() => onEditar(msg)}
+      title="Editar"
+      style={{
+        marginLeft: 14,
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        fontSize: 19,
+        color: "#2563eb",
+      }}
+    >
+      ✏️
+    </button>
+
+    {/* Excluir */}
+    <button
+      onClick={() => onExcluir(msg)}
+      title="Excluir"
+      style={{
+        marginLeft: 4,
+        border: "none",
+        background: "transparent",
+        cursor: "pointer",
+        fontSize: 19,
+        color: "#dc2626",
+      }}
+    >
+      🗑️
+    </button>
+  </div>
+))}
+
 </div>
 
 {modalMensagemOpen && (
