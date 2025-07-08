@@ -478,8 +478,10 @@ const renderConteudo = () => {
               boxShadow: "0 2px 4px rgba(0,0,0,0.07)"
             }}
           >
-            + Novo Template
-            <div style={{ marginTop: 28 }}>
+            + Novo Template      
+
+          </button>
+          <div style={{ marginTop: 28 }}>
             {templates.length === 0 ? (
   <div style={{ color: "#888", fontSize: 16 }}>
     Nenhum template cadastrado ainda.
@@ -496,7 +498,6 @@ const renderConteudo = () => {
 
 </div>
 
-          </button>
           <ModalNovoTemplate
   aberto={modalNovoTemplateOpen}
   onClose={() => setModalNovoTemplateOpen(false)}
