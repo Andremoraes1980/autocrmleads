@@ -37,6 +37,24 @@ function handleAdicionarTemplate(template) {
   setTemplates(prev => [template, ...prev]);
 }
 
+// Função para carregar do backend
+async function carregarTemplates() {
+  try {
+    const resp = await fetch("https://autocrm-backend.onrender.com/api/templates");
+    const lista = await resp.json();
+    setTemplates(lista);
+  } catch (err) {
+    console.error("Erro ao carregar templates:", err);
+  }
+}
+
+// Chama ao abrir a aba templates
+useEffect(() => {
+  if (abaAtiva === "templates") {
+    carregarTemplates();
+  }
+}, [abaAtiva]);
+
 
 
 useEffect(() => {
@@ -462,19 +480,20 @@ const renderConteudo = () => {
           >
             + Novo Template
             <div style={{ marginTop: 28 }}>
-  {templates.length === 0 ? (
-    <div style={{ color: "#888", fontSize: 16 }}>
-      Nenhum template cadastrado ainda.
+            {templates.length === 0 ? (
+  <div style={{ color: "#888", fontSize: 16 }}>
+    Nenhum template cadastrado ainda.
+  </div>
+) : (
+  templates.map(tmp => (
+    <div key={tmp.id} style={{ marginBottom: 16, background: "#f9fafb", borderRadius: 8, padding: "14px 20px" }}>
+      <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 4 }}>{tmp.nome}</div>
+      <div style={{ color: "#666", marginBottom: 8, fontSize: 15 }}>{tmp.conteudo}</div>
+      <div style={{ color: "#aaa", fontSize: 13 }}>Status: {tmp.status}</div>
     </div>
-  ) : (
-    templates.map(tmp => (
-      <div key={tmp.id} style={{ marginBottom: 16, background: "#f9fafb", borderRadius: 8, padding: "14px 20px" }}>
-        <div style={{ fontWeight: 600, fontSize: 17, marginBottom: 4 }}>{tmp.nome}</div>
-        <div style={{ color: "#666", marginBottom: 8, fontSize: 15 }}>{tmp.conteudo}</div>
-        <div style={{ color: "#aaa", fontSize: 13 }}>Status: {tmp.status}</div>
-      </div>
-    ))
-  )}
+  ))
+)}
+
 </div>
 
           </button>
