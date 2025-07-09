@@ -42,6 +42,7 @@ async function carregarTemplates() {
   try {
     const resp = await fetch("https://autocrm-backend.onrender.com/api/templates");
     const lista = await resp.json();
+    console.log("Templates carregados:", lista);  // <-- Adicione esta linha!
     setTemplates(lista);
   } catch (err) {
     console.error("Erro ao carregar templates:", err);
