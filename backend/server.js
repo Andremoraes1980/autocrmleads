@@ -4,6 +4,8 @@ const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
 require('dotenv').config();
+require('./jobs/agendador');
+
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
 const { createClient } = require('@supabase/supabase-js');
