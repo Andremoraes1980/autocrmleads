@@ -1,6 +1,17 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
 const fetch = require('node-fetch'); // <-- Colado aqui
+const dayjs = require('dayjs');
+const utc = require('dayjs/plugin/utc');
+const timezone = require('dayjs/plugin/timezone');
+const agora = dayjs().tz("America/Sao_Paulo");
+const horaMinuto = agora.format("HH:mm");
+
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+console.log("⏰ [AGENDADOR] Cron de mensagens automáticas INICIADO!");
+
 
 async function sendWhatsappMessage(lead, texto) {
     try {
@@ -30,6 +41,7 @@ async function sendWhatsappMessage(lead, texto) {
 
 // === CRON JOB: Disparo de mensagens automáticas por etapa e horário ===
 cron.schedule('* * * * *', async () => {
+    console.log(`[CRON] Executando agendador: ${new Date().toLocaleString()}`);
     const agora = new Date();
     const horaMinuto = agora
       .toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })
