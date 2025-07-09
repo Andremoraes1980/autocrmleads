@@ -16,6 +16,27 @@ export default function ModalMensagemAutomacao({ open, onClose, onSalvar, automa
   const [templates, setTemplates] = useState([]);
 
   useEffect(() => {
+    if (mensagemParaEditar) {
+      setTexto(mensagemParaEditar.texto || "");
+      setTempo(mensagemParaEditar.tempo || "");
+      setCanais(Array.isArray(mensagemParaEditar.canais) ? mensagemParaEditar.canais : []); // para múltiplo
+      setAtiva(mensagemParaEditar.ativa !== undefined ? mensagemParaEditar.ativa : true);
+      setHorario(mensagemParaEditar.horario || "");
+      setTemplateSelecionado(mensagemParaEditar.template_id || "");
+      setTemplateId(mensagemParaEditar.template_id || null);
+    } else {
+      setTexto("");
+      setTempo("");
+      setCanais([]);
+      setAtiva(true);
+      setHorario("");
+      setTemplateSelecionado("");
+      setTemplateId(null);
+    }
+  }, [mensagemParaEditar]);
+  
+
+  useEffect(() => {
     async function fetchTemplates() {
       try {
         const resp = await fetch("https://autocrm-backend.onrender.com/api/templates?status=aprovado");

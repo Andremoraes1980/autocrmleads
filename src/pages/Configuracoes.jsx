@@ -31,7 +31,14 @@ const [modalMensagemOpen, setModalMensagemOpen] = useState(false);
 const [indiceAutomacaoSelecionada, setIndiceAutomacaoSelecionada] = useState(null);
 const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
+const [mensagemParaEditar, setMensagemParaEditar] = useState(null);
 const [templates, setTemplates] = useState([]);
+
+function handleEditarMensagem(automacaoId, msg) {
+  setIndiceAutomacaoSelecionada(automacoes.findIndex(a => a.id === automacaoId));
+  setMensagemParaEditar(msg);
+  setModalMensagemOpen(true);
+}
 
 async function handleExcluirMensagem(automacaoId, mensagemId) {
   if (!window.confirm("Confirma exclusão da mensagem?")) return;
@@ -424,7 +431,7 @@ const renderConteudo = () => {
         horario={auto.horario}
         mensagens={mensagensPorAutomacao[auto.id] || []}
         onToggleAtiva={() => {/* implementar depois */}}
-        onEditar={() => {/* implementar depois */}}
+        onEditar={msg => handleEditarMensagem(auto.id, msg)}
         onExcluir={msg => handleExcluirMensagem(auto.id, msg.id)}
         onAdicionarMensagem={() => {
           setModalMensagemOpen(true);
@@ -438,25 +445,41 @@ const renderConteudo = () => {
 {modalMensagemOpen && (
   <ModalMensagemAutomacao
     open={modalMensagemOpen}
-    onClose={() => setModalMensagemOpen(false)}
+    onClose={() => {
+      setModalMensagemOpen(false);
+      setIndiceAutomacaoSelecionada(null);
+      setMensagemParaEditar(null);
+    }}
     onSalvar={(msg) => {
       setAutomacoes(prev => prev.map((auto, idx) => {
         if (idx !== indiceAutomacaoSelecionada) return auto;
-        // Adiciona a nova mensagem no array de mensagens da automação selecionada
-        return {
-          ...auto,
-          mensagens: [
-            ...(auto.mensagens || []),
-            { ...msg, id: Date.now(), status: "pendente" }
-          ]
+        // Se for edição, atualiza. Se for novo, adiciona.
+        if (mensagemParaEditar) {
+          return {
+            ...auto,
+            mensagens: auto.mensagens.map(m =>
+              m.id === mensagemParaEditar.id ? { ...m, ...msg } : m
+            )
+          }
+        } else {
+          return {
+            ...auto,
+            mensagens: [
+              ...(auto.mensagens || []),
+              { ...msg, id: Date.now(), status: "pendente" }
+            ]
+          }
         }
       }));
       setModalMensagemOpen(false);
       setIndiceAutomacaoSelecionada(null);
+      setMensagemParaEditar(null);
     }}
     automacao_id={automacoes[indiceAutomacaoSelecionada]?.id}
+    mensagemParaEditar={mensagemParaEditar}
   />
 )}
+
 
         <div style={{
           background: "#fffbe6",

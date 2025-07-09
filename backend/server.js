@@ -357,6 +357,61 @@ app.post('/api/templates', async (req, res) => {
 });
 
 
+app.delete('/api/automacoes-mensagens/:id', async (req, res) => {
+  const { id } = req.params;
+  const { error } = await supabase.from('automacoes_mensagens').delete().eq('id', id);
+  if (error) return res.status(500).json({ error: error.message });
+  res.json({ ok: true });
+});
+
+// Exemplo com Express.js
+
+// --- Rota: Editar mensagem automática ---
+app.put('/api/automacoes-mensagens/:id', async (req, res) => {
+  const { id } = req.params;
+  const {
+    texto,
+    template_id,
+    canais,
+    horario,
+    ativa,
+    ordem,
+    automacao_id,
+    // outros campos opcionais, se houver
+  } = req.body;
+
+  // Log para depuração
+  console.log("Editando mensagem automática:", req.body);
+
+  // Atualiza no Supabase
+  const { data, error } = await supabase
+    .from('automacoes_mensagens')
+    .update({
+      texto,
+      template_id,
+      canais,
+      horario,
+      ativa,
+      ordem,
+      automacao_id,
+      atualizado_em: new Date().toISOString(),
+      // outros campos, se houver
+    })
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    console.error("Erro ao editar mensagem automática:", error);
+    return res.status(500).json({ error: error.message });
+  }
+
+  res.json(data);
+});
+
+
+
+
+
 
 
 
