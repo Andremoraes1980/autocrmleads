@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
-import CanalIcone from './CanalIcone'; // ajuste o caminho conforme a estrutura do seu projeto
+import CanalIcone from "../components/CanalIcone"; // ajuste o caminho conforme a estrutura do seu projeto
 
 
 
