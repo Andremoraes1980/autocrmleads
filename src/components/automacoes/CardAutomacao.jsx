@@ -2,6 +2,8 @@
 
 import React, { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import CanalIcone from './CanalIcone'; // ajuste o caminho conforme a estrutura do seu projeto
+
 
 
 export default function CardAutomacao({
@@ -108,25 +110,19 @@ export default function CardAutomacao({
 
     {/* Canal */}
     <span style={{ fontSize: 17, marginLeft: 6 }}>
-    {Array.isArray(msg.canais)
-  ? msg.canais.map(canal => (
-      <span key={canal} style={{ marginRight: 2 }}>
-        {canal === "whatsapp"
-          ? "📱"
-          : canal === "email"
-          ? "✉️"
-          : canal === "chat"
-          ? "💬"
-          : "🔔"}
-      </span>
-    ))
-  : (msg.canal === "whatsapp"
-      ? "📱"
-      : msg.canal === "email"
-      ? "✉️"
-      : "🔔")}
-
-    </span>
+  {Array.isArray(msg.canais)
+    ? msg.canais.map(canal => (
+        <span key={canal} style={{ marginRight: 6 }}>
+          <CanalIcone canal={canal} size={26} />
+        </span>
+      ))
+    : (
+        <span>
+          <CanalIcone canal={msg.canal} size={26} />
+        </span>
+      )
+  }
+</span>
 
     {/* Horário */}
     <span style={{ color: "#888", fontSize: 14, minWidth: 50, textAlign: "center" }}>
