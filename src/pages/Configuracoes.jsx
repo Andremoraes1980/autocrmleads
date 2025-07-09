@@ -455,57 +455,47 @@ const renderConteudo = () => {
       setIndiceAutomacaoSelecionada(null);
       setMensagemParaEditar(null);
     }}
-    onSalvar={async (msg) => {
-      const automacaoId = automacoes[indiceAutomacaoSelecionada]?.id;
-    
-      if (mensagemParaEditar) {
-        // === EDITAR: PUT no backend ===
-        try {
-          const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens/${mensagemParaEditar.id}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(msg)
-          });
-          if (!resp.ok) throw new Error("Erro ao editar!");
-          // Após editar, recarrega as mensagens do backend:
-          fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${automacaoId}`)
-            .then(r => r.json())
-            .then(msgs => {
-              setMensagensPorAutomacao(prev => ({
-                ...prev,
-                [automacaoId]: msgs
-              }));
-            });
-        } catch (err) {
-          alert("Erro ao salvar edição no backend!");
-          console.error(err);
-        }
-      } else {
-        // === NOVO: POST no backend ===
-        try {
-          const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ ...msg, automacao_id: automacaoId })
-          });
-          if (!resp.ok) throw new Error("Erro ao criar!");
-          // Após criar, recarrega as mensagens do backend:
-          fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${automacaoId}`)
-            .then(r => r.json())
-            .then(msgs => {
-              setMensagensPorAutomacao(prev => ({
-                ...prev,
-                [automacaoId]: msgs
-              }));
-            });
-        } catch (err) {
-          alert("Erro ao criar mensagem no backend!");
-          console.error(err);
-        }
-      }
-      setModalMensagemOpen(false);
-      setIndiceAutomacaoSelecionada(null);
-      setMensagemParaEditar(null);
+     onSalvar={async (msg) => {
+         const automacaoId = automacoes[indiceAutomacaoSelecionada]?.id;
+         try {
+           if (msg.id) {
+             // EDIÇÃO
+             await fetch(
+               `https://autocrm-backend.onrender.com/api/automacoes-mensagens/${msg.id}`,
+               {
+                 method: "PUT",
+                 headers: { "Content-Type": "application/json" },
+                 body: JSON.stringify(msg)
+               }
+             );
+           } else {
+             // CRIAÇÃO
+             await fetch(
+               "https://autocrm-backend.onrender.com/api/automacoes-mensagens",
+               {
+                 method: "POST",
+                 headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(msg)
+               }
+             );
+           }
+           // Recarrega a lista de mensagens **apenas uma vez**:
+           const resp = await fetch(
+             `https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${automacaoId}`
+           );
+           const msgs = await resp.json();
+           setMensagensPorAutomacao(prev => ({
+             ...prev,
+             [automacaoId]: msgs
+           }));
+         } catch (err) {
+           alert("Erro ao salvar mensagem no backend!");
+           console.error(err);
+         } finally {
+           setModalMensagemOpen(false);
+           setIndiceAutomacaoSelecionada(null);
+           setMensagemParaEditar(null);
+         }
     }}
     
     automacao_id={automacoes[indiceAutomacaoSelecionada]?.id}

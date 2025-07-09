@@ -77,34 +77,22 @@ const [templatesAprovados, setTemplatesAprovados] = useState([
     { label: "Loja", value: "{loja}" },
   ];
 
-  // ... aqui vão seus imports, states, etc
+  
 
-const handleSalvarMensagem = async () => {
-  const novaMensagem = {
-    texto,
-    template_id: templateId || null,
-    canais,
-    horario,
-    ativa,
-    ordem: 1,
-    automacao_id,
-    // outros campos...
-  };
-
-  try {
-    const resp = await fetch("https://autocrm-backend.onrender.com/api/automacoes-mensagens", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(novaMensagem)
-    });
-    const salvo = await resp.json();
-    onSalvar(salvo);
-    onClose();
-  } catch (err) {
-    alert("Erro ao salvar mensagem automática!");
-    console.error(err);
-  }
-};
+    // PASSA A SER ASSIM: apenas coleta os campos e avisa o parent
+    const handleSalvarMensagem = () => {
+      onSalvar({
+        id: mensagemParaEditar?.id,             // se existir, vem para PUT
+        texto,
+        template_id: templateId || null,
+        canais,
+        horario,
+        ativa,
+        ordem: mensagemParaEditar?.ordem || 1, // mantém ordem se editar
+        automacao_id,
+      });
+      onClose();
+    };
 
 
 
