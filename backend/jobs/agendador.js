@@ -4,11 +4,13 @@ const fetch = require('node-fetch'); // <-- Colado aqui
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
+dayjs.extend(utc);
+dayjs.extend(timezone);
+
+// Agora sim pode usar .tz()
 const agora = dayjs().tz("America/Sao_Paulo");
 const horaMinuto = agora.format("HH:mm");
 
-dayjs.extend(utc);
-dayjs.extend(timezone);
 
 console.log("⏰ [AGENDADOR] Cron de mensagens automáticas INICIADO!");
 
