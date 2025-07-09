@@ -1,6 +1,7 @@
 // src/components/automacoes/CardAutomacao.jsx
 
 import React, { useState } from "react";
+import { Pencil, Trash2 } from "lucide-react";
 
 
 export default function CardAutomacao({
@@ -144,36 +145,42 @@ export default function CardAutomacao({
     </label>
 
     {/* Editar */}
-    <button
-      onClick={() => onEditar(msg)}
-      title="Editar"
-      style={{
-        marginLeft: 14,
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontSize: 19,
-        color: "#2563eb",
-      }}
-    >
-      ✏️
-    </button>
+<button
+  onClick={() => onEditar(msg)}
+  title="Editar"
+  style={{
+    marginLeft: 14,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 19,
+    color: "#2563eb",
+    padding: 3,
+    borderRadius: 6,
+    transition: "background 0.2s"
+  }}
+>
+  <Pencil size={20} />
+</button>
 
     {/* Excluir */}
-    <button
-      onClick={() => onExcluir(msg)}
-      title="Excluir"
-      style={{
-        marginLeft: 4,
-        border: "none",
-        background: "transparent",
-        cursor: "pointer",
-        fontSize: 19,
-        color: "#dc2626",
-      }}
-    >
-      🗑️
-    </button>
+<button
+  onClick={() => onExcluir(msg)}
+  title="Excluir"
+  style={{
+    marginLeft: 4,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    fontSize: 19,
+    color: "#dc2626",
+    padding: 3,
+    borderRadius: 6,
+    transition: "background 0.2s"
+  }}
+>
+  <Trash2 size={20} />
+</button>
   </div>
 ))}
 

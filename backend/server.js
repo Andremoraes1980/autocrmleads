@@ -314,14 +314,12 @@ app.get('/api/automacoes-mensagens', async (req, res) => {
 
 
 app.get('/api/templates', async (req, res) => {
-  const status = req.query.status || 'aprovado'; // permite filtrar por status se quiser
-
   try {
-    const { data, error } = await supabase
-      .from('templates')
-      .select('*')
-      .eq('status', status);
-
+    let query = supabase.from('templates').select('*');
+    if (req.query.status) {
+      query = query.eq('status', req.query.status);
+    }
+    const { data, error } = await query;
     if (error) {
       console.error("Erro ao buscar templates:", error);
       return res.status(500).json({ error: error.message });
