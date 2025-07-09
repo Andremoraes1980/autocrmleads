@@ -33,6 +33,32 @@ const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
 const [templates, setTemplates] = useState([]);
 
+async function handleExcluirMensagem(automacaoId, mensagemId) {
+  if (!window.confirm("Confirma exclusão da mensagem?")) return;
+  try {
+    // Chame o backend para deletar a mensagem:
+    const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens/${mensagemId}`, {
+      method: "DELETE"
+    });
+    if (!resp.ok) {
+      alert("Erro ao excluir!");
+      return;
+    }
+    // Remova do state local:
+    setAutomacoes(prev =>
+      prev.map(auto =>
+        auto.id === automacaoId
+          ? { ...auto, mensagens: (auto.mensagens || []).filter(msg => msg.id !== mensagemId) }
+          : auto
+      )
+    );
+  } catch (err) {
+    alert("Erro de conexão ao excluir!");
+    console.error(err);
+  }
+}
+
+
 function handleAdicionarTemplate(template) {
   setTemplates(prev => [template, ...prev]);
 }
@@ -399,9 +425,7 @@ const renderConteudo = () => {
         mensagens={mensagensPorAutomacao[auto.id] || []}
         onToggleAtiva={() => {/* implementar depois */}}
         onEditar={() => {/* implementar depois */}}
-        onExcluir={() =>
-          setAutomacoes(automacoes.filter((a, i) => i !== idx))
-        }
+        onExcluir={msg => handleExcluirMensagem(auto.id, msg.id)}
         onAdicionarMensagem={() => {
           setModalMensagemOpen(true);
           setIndiceAutomacaoSelecionada(idx);
