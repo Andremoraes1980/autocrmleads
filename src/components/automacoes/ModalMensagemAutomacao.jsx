@@ -226,7 +226,7 @@ const handleSalvarMensagem = async () => {
     }}
   >
     <option value="">Selecione um template...</option>
-    {templates.map(tmp => (
+    {(Array.isArray(templates) ? templates : []).map(tmp => (
     <option value={tmp.id} key={tmp.id}>{tmp.nome}</option>
     ))}
   </select>

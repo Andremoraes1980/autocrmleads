@@ -75,7 +75,7 @@ export default function CardAutomacao({
 
       <div style={{ marginLeft: 10, marginTop: 12 }}>
       
-      {mensagens.map((msg) => (
+      {(Array.isArray(mensagens) ? mensagens : []).map(msg => (
   <div
     key={msg.id}
     style={{
