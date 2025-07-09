@@ -456,45 +456,58 @@ const renderConteudo = () => {
       setMensagemParaEditar(null);
     }}
     onSalvar={async (msg) => {
+      const automacaoId = automacoes[indiceAutomacaoSelecionada]?.id;
+    
       if (mensagemParaEditar) {
-        // === EDITAR: Chama backend (PUT) e atualiza state ===
+        // === EDITAR: PUT no backend ===
         try {
           const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens/${mensagemParaEditar.id}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(msg)
           });
-          const data = await resp.json();
-          setAutomacoes(prev => prev.map((auto, idx) => {
-            if (idx !== indiceAutomacaoSelecionada) return auto;
-            return {
-              ...auto,
-              mensagens: auto.mensagens.map(m =>
-                m.id === mensagemParaEditar.id ? { ...m, ...msg } : m
-              )
-            };
-          }));
+          if (!resp.ok) throw new Error("Erro ao editar!");
+          // Após editar, recarrega as mensagens do backend:
+          fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${automacaoId}`)
+            .then(r => r.json())
+            .then(msgs => {
+              setMensagensPorAutomacao(prev => ({
+                ...prev,
+                [automacaoId]: msgs
+              }));
+            });
         } catch (err) {
           alert("Erro ao salvar edição no backend!");
           console.error(err);
         }
       } else {
-        // === NOVO: Só adiciona localmente ===
-        setAutomacoes(prev => prev.map((auto, idx) => {
-          if (idx !== indiceAutomacaoSelecionada) return auto;
-          return {
-            ...auto,
-            mensagens: [
-              ...(auto.mensagens || []),
-              { ...msg, id: Date.now(), status: "pendente" }
-            ]
-          };
-        }));
+        // === NOVO: POST no backend ===
+        try {
+          const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ ...msg, automacao_id: automacaoId })
+          });
+          if (!resp.ok) throw new Error("Erro ao criar!");
+          // Após criar, recarrega as mensagens do backend:
+          fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens?automacao_id=${automacaoId}`)
+            .then(r => r.json())
+            .then(msgs => {
+              setMensagensPorAutomacao(prev => ({
+                ...prev,
+                [automacaoId]: msgs
+              }));
+            });
+        } catch (err) {
+          alert("Erro ao criar mensagem no backend!");
+          console.error(err);
+        }
       }
       setModalMensagemOpen(false);
       setIndiceAutomacaoSelecionada(null);
       setMensagemParaEditar(null);
     }}
+    
     automacao_id={automacoes[indiceAutomacaoSelecionada]?.id}
     mensagemParaEditar={mensagemParaEditar}
   />
