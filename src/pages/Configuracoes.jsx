@@ -431,11 +431,16 @@ const renderConteudo = () => {
         horario={auto.horario}
         mensagens={mensagensPorAutomacao[auto.id] || []}
         onToggleAtiva={() => {/* implementar depois */}}
-        onEditar={msg => handleEditarMensagem(auto.id, msg)}
+        onEditar={msg => {
+          setMensagemParaEditar(msg); // <-- Seta a mensagem que será editada
+          setIndiceAutomacaoSelecionada(idx);
+          setModalMensagemOpen(true);
+        }}
         onExcluir={msg => handleExcluirMensagem(auto.id, msg.id)}
         onAdicionarMensagem={() => {
-          setModalMensagemOpen(true);
+          setMensagemParaEditar(null); // <-- Limpa ao adicionar nova
           setIndiceAutomacaoSelecionada(idx);
+          setModalMensagemOpen(true);
         }}
       />
     ))
@@ -450,27 +455,42 @@ const renderConteudo = () => {
       setIndiceAutomacaoSelecionada(null);
       setMensagemParaEditar(null);
     }}
-    onSalvar={(msg) => {
-      setAutomacoes(prev => prev.map((auto, idx) => {
-        if (idx !== indiceAutomacaoSelecionada) return auto;
-        // Se for edição, atualiza. Se for novo, adiciona.
-        if (mensagemParaEditar) {
-          return {
-            ...auto,
-            mensagens: auto.mensagens.map(m =>
-              m.id === mensagemParaEditar.id ? { ...m, ...msg } : m
-            )
-          }
-        } else {
+    onSalvar={async (msg) => {
+      if (mensagemParaEditar) {
+        // === EDITAR: Chama backend (PUT) e atualiza state ===
+        try {
+          const resp = await fetch(`https://autocrm-backend.onrender.com/api/automacoes-mensagens/${mensagemParaEditar.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(msg)
+          });
+          const data = await resp.json();
+          setAutomacoes(prev => prev.map((auto, idx) => {
+            if (idx !== indiceAutomacaoSelecionada) return auto;
+            return {
+              ...auto,
+              mensagens: auto.mensagens.map(m =>
+                m.id === mensagemParaEditar.id ? { ...m, ...msg } : m
+              )
+            };
+          }));
+        } catch (err) {
+          alert("Erro ao salvar edição no backend!");
+          console.error(err);
+        }
+      } else {
+        // === NOVO: Só adiciona localmente ===
+        setAutomacoes(prev => prev.map((auto, idx) => {
+          if (idx !== indiceAutomacaoSelecionada) return auto;
           return {
             ...auto,
             mensagens: [
               ...(auto.mensagens || []),
               { ...msg, id: Date.now(), status: "pendente" }
             ]
-          }
-        }
-      }));
+          };
+        }));
+      }
       setModalMensagemOpen(false);
       setIndiceAutomacaoSelecionada(null);
       setMensagemParaEditar(null);
@@ -479,6 +499,7 @@ const renderConteudo = () => {
     mensagemParaEditar={mensagemParaEditar}
   />
 )}
+
 
 
         <div style={{
