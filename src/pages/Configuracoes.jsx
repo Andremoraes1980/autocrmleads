@@ -478,73 +478,71 @@ const renderConteudo = () => {
               boxShadow: "0 2px 4px rgba(0,0,0,0.07)"
             }}
           >
-             + Novo Template
-</button>
-
-<div style={{ marginTop: 28 }}>
-  {templates.length === 0 ? (
-    <div style={{ color: "#888", fontSize: 16 }}>
-      Nenhum template cadastrado ainda.
-    </div>
-  ) : (
-    templates.map(tmp => (
-      <div key={tmp.id} style={{
-        margin: "22px auto 0",
-        background: "#fff",
-        borderRadius: 16,
-        maxWidth: 600,
-        boxShadow: "0 2px 16px rgba(0,0,0,0.05)",
-        padding: "30px 40px 16px 40px",
-        position: "relative"
-      }}>
-        <div style={{
-          color: "#2563eb",
-          fontWeight: 700,
-          fontSize: 21,
-          marginBottom: 5,
-          opacity: 0.3,
-          textAlign: "center"
-        }}>
-          {tmp.nome}
-        </div>
-        <div style={{
-          color: "#222",
-          fontSize: 17,
-          fontWeight: 500,
-          marginBottom: 9,
-          textAlign: "center"
-        }}>
-          {tmp.conteudo}
-        </div>
-        <div style={{
-          color: "#aaa",
-          fontSize: 14,
-          marginBottom: 4,
-          textAlign: "center"
-        }}>
-          Status: {tmp.status}
-        </div>
-      </div>
-    ))
-  )}
-</div>
-
-          <ModalNovoTemplate
-  aberto={modalNovoTemplateOpen}
-  onClose={() => setModalNovoTemplateOpen(false)}
-  onSalvar={handleAdicionarTemplate}
-/>
-
-
-          <p>
-            Gerencie aqui seus templates de mensagem para uso em canais como WhatsApp, e-mail, etc. 
-          </p>
-          {/* Aqui listaremos os templates cadastrados */}
+            + Novo Template
+          </button>
+    
+          {/* LISTAGEM DOS TEMPLATES */}
           <div style={{ marginTop: 28 }}>
-            {/* TODO: Listagem dos templates */}
+            {templates.length === 0 ? (
+              <div style={{ color: "#888", fontSize: 16 }}>
+                Nenhum template cadastrado ainda.
+              </div>
+            ) : (
+              templates.map(tmp => (
+                <div key={tmp.id} style={{
+                  margin: "22px auto 0",
+                  background: "#fff",
+                  borderRadius: 16,
+                  maxWidth: 600,
+                  boxShadow: "0 2px 16px rgba(0,0,0,0.05)",
+                  padding: "30px 40px 16px 40px",
+                  position: "relative"
+                }}>
+                  <div style={{
+                    color: "#2563eb",
+                    fontWeight: 700,
+                    fontSize: 21,
+                    marginBottom: 5,
+                    opacity: 0.3,
+                    textAlign: "center"
+                  }}>
+                    {tmp.nome}
+                  </div>
+                  <div style={{
+                    color: "#222",
+                    fontSize: 17,
+                    fontWeight: 500,
+                    marginBottom: 9,
+                    textAlign: "center"
+                  }}>
+                    {tmp.conteudo}
+                  </div>
+                  <div style={{
+                    color: "#aaa",
+                    fontSize: 14,
+                    marginBottom: 4,
+                    textAlign: "center"
+                  }}>
+                    Status: {tmp.status}
+                  </div>
+                </div>
+              ))
+            )}
           </div>
+    
+          <ModalNovoTemplate
+            aberto={modalNovoTemplateOpen}
+            onClose={() => setModalNovoTemplateOpen(false)}
+            onSalvar={handleAdicionarTemplate}
+          />
+    
+          <p>
+            Gerencie aqui seus templates de mensagem para uso em canais como WhatsApp, e-mail, etc.
+          </p>
         </div>
-      );}
+      );
+    }
+    
 
     else {
     return (
