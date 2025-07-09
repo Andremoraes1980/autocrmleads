@@ -39,20 +39,28 @@ async function sendWhatsappMessage(lead, texto) {
       console.error(`[CRON][WhatsApp][ERRO] Falha ao enviar para ${lead.nome || lead.telefone}:`, err.message || err);
     }
   }
+
+  async function sendEmailMessage(lead, texto) {
+    console.log(`(MENSAGEM MOCK EMAIL) Para: ${lead.email} — Texto: ${texto}`);
+  }
+  
+  async function sendChatMessage(lead, texto) {
+    console.log(`(MENSAGEM MOCK CHAT) Para: ${lead.nome || lead.id} — Texto: ${texto}`);
+  }
+  
   
 
 // === CRON JOB: Disparo de mensagens automáticas por etapa e horário ===
 cron.schedule('* * * * *', async () => {
-    console.log(`[CRON] Executando agendador: ${new Date().toLocaleString()}`);
-    const agora = new Date();
-    const horaMinuto = agora
-      .toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false })
-      .padStart(5, "0"); // Formato "HH:MM"
+    // LOG com horário de SP
+    const agoraSP = dayjs().tz("America/Sao_Paulo");
+    const horaMinuto = agoraSP.format("HH:mm");
+    console.log(`[CRON] Executando agendador (SP): ${agoraSP.format("DD/MM/YYYY HH:mm")}`);
   
     // Busca todas mensagens automáticas ativas para esse horário
     const { data: mensagens, error } = await supabase
       .from('automacoes_mensagens')
-      .select('*')
+      .select('*, automacao:automacoes_leads(status_coluna)')
       .eq('ativa', true)
       .eq('horario', horaMinuto);
   
@@ -68,7 +76,7 @@ cron.schedule('* * * * *', async () => {
       const { data: leads, error: errorLeads } = await supabase
         .from('leads')
         .select('*')
-        .eq('etapa', msg.status_coluna); // ou msg.etapa, conforme seu banco
+        .eq('etapa', msg.automacao.status_coluna);
   
       if (errorLeads) {
         console.error("[CRON] Erro ao buscar leads para automação:", errorLeads.message);
@@ -98,18 +106,7 @@ cron.schedule('* * * * *', async () => {
   });
 
   
-// Função de envio real/mocks:
-async function sendWhatsappMessage(lead, texto) {
-    // Aqui vai sua integração real!
-    console.log(`(MENSAGEM MOCK WHATSAPP) Para: ${lead.nome} (${lead.telefone}) — Texto: ${texto}`);
-  }
+
   
-  async function sendEmailMessage(lead, texto) {
-    console.log(`(MENSAGEM MOCK EMAIL) Para: ${lead.email} — Texto: ${texto}`);
-  }
-  
-  async function sendChatMessage(lead, texto) {
-    console.log(`(MENSAGEM MOCK CHAT) Para: ${lead.nome || lead.id} — Texto: ${texto}`);
-  }
   
   
