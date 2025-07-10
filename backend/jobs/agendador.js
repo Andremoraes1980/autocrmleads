@@ -1,8 +1,7 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
-const API_PORT = process.env.PORT || 5001;
-const API_HOST = process.env.API_HOST || '127.0.0.1';
-const BASE_URL = `http://${API_HOST}:${API_PORT}`;
+const BACKEND_URL = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT}`;
+https://autocrm-backend.onrender.com
 const fetch = require('node-fetch'); // <-- Colado aqui
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
@@ -20,7 +19,7 @@ console.log("⏰ [AGENDADOR] Cron de mensagens automáticas INICIADO!");
 
 async function sendWhatsappMessage(lead, texto) {
     try {
-      const response = await fetch(`${BASE_URL}/api/enviar-mensagem`, {
+      const response = await fetch(`${BACKEND_URL}/api/enviar-mensagem`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
