@@ -1,13 +1,16 @@
 const cron = require('node-cron');
 const supabase = require('../config/supabase');
-const BACKEND_URL = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT}`;
-https://autocrm-backend.onrender.com
 const fetch = require('node-fetch'); // <-- Colado aqui
 const dayjs = require('dayjs');
 const utc = require('dayjs/plugin/utc');
 const timezone = require('dayjs/plugin/timezone');
+
 dayjs.extend(utc);
 dayjs.extend(timezone);
+
+const BACKEND_URL = process.env.BACKEND_URL || `http://127.0.0.1:${process.env.PORT}`;
+
+
 
 // Agora sim pode usar .tz()
 const agora = dayjs().tz("America/Sao_Paulo");

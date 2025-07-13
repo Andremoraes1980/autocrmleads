@@ -1,5 +1,6 @@
 {
-  "name": "crm-vite",
+  "$schema": "https://json.schemastore.org/package.json",
+    "name": "crm-vite",
   "private": true,
   "version": "0.0.0",
   "type": "module",

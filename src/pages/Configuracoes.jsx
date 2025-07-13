@@ -8,6 +8,7 @@ import CardAutomacao from "../components/automacoes/CardAutomacao";
 import ModalNovaAutomacao from "../components/automacoes/ModalNovaAutomacao";
 import ModalMensagemAutomacao from "../components/automacoes/ModalMensagemAutomacao";
 import ModalNovoTemplate from "../components/ModalNovoTemplate";
+import { io } from "socket.io-client";  // ← Adicionado para conectar no provider
 
 
 
@@ -33,6 +34,23 @@ const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
 const [mensagemParaEditar, setMensagemParaEditar] = useState(null);
 const [templates, setTemplates] = useState([]);
+const [qrCode, setQrCode] = useState(null);
+
+ // Quando estiver na aba "integracoes", conectamos ao socket e ouvimos o evento "qrCode"
+   useEffect(() => {
+        if (abaAtiva !== "integracoes") return;
+        const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL);
+        socket.on("qrCode", ({ qr }) => {
+          setQrCode(qr);
+        });
+        // limpa ao sair da aba
+        return () => {
+          socket.disconnect();
+          setQrCode(null);
+        };
+      }, [abaAtiva]);
+
+
 
 function handleEditarMensagem(automacaoId, msg) {
   setIndiceAutomacaoSelecionada(automacoes.findIndex(a => a.id === automacaoId));
@@ -381,12 +399,16 @@ const renderConteudo = () => {
           <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
 
 
-          {/* Autoline */}
-          <div className={styles.cardIntegracao}>
-            <img src="/autoline.png" alt="Autoline" style={{ width: 56 }} />
-            <div>Autoline</div>
-            <button className={styles.botaoConectar} disabled>Conectar</button>
-          </div>
+          {qrCode && (
+        <div className={styles.qrContainer} style={{ margin: "24px 0", textAlign: "center" }}>
+          <p>Escaneie com o WhatsApp:</p>
+          <img
+            src={`https://api.qrserver.com/v1/create-qr-code?size=200x200&data=${encodeURIComponent(qrCode)}`}
+            alt="QR Code WhatsApp"
+            style={{ width: 200, height: 200 }}
+          />
+        </div>
+      )}
         </div>
       </div>
     );
