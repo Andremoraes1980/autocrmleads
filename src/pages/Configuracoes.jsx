@@ -16,7 +16,7 @@ import { io } from "socket.io-client";  // ← Adicionado para conectar no provi
 
 export default function Configuracoes() {
   
-  const [abaAtiva, setAbaAtiva] = useState("dados-revenda");
+  const [abaAtiva, setAbaAtiva] = useState("dados-revenda", "integracoes");
   const [nome, setNome] = useState("");
 const [endereco, setEndereco] = useState("");
 const [telefone, setTelefone] = useState("");
@@ -35,6 +35,7 @@ const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
 const [mensagemParaEditar, setMensagemParaEditar] = useState(null);
 const [templates, setTemplates] = useState([]);
 const [qrCode, setQrCode] = useState(null);
+const [isModalOpen, setModalOpen] = useState(false);
 
  // Quando estiver na aba "integracoes", conectamos ao socket e ouvimos o evento "qrCode"
    useEffect(() => {
@@ -47,16 +48,22 @@ const [qrCode, setQrCode] = useState(null);
         secure: true,              // garante HTTPS
         });
 
-        socket.on("qrCode", ({ qr }) => {
+        socket.on('connect', () => console.log('🟢 Socket conectado'));
+        socket.on('qrCode', ({ qr }) => {
+          console.log('🟡 QR Code recebido:', qr);
           setQrCode(qr);
         });
-        
+
+        socket.on('disconnect', () => console.log('🔴 Socket desconectado'));
+
         // limpa ao sair da aba
         return () => {
           socket.disconnect();
           setQrCode(null);
         };
       }, [abaAtiva]);
+
+
 
 
 
@@ -407,16 +414,52 @@ const renderConteudo = () => {
           <IntegracaoMercadoLivre usuarioId={usuarioLocal.id} revendaId={usuarioLocal.revenda_id} />
 
 
-          {qrCode && (
-        <div className={styles.qrContainer} style={{ margin: "24px 0", textAlign: "center" }}>
-          <p>Escaneie com o WhatsApp:</p>
-          <img
-            src={`https://api.qrserver.com/v1/create-qr-code?size=200x200&data=${encodeURIComponent(qrCode)}`}
-            alt="QR Code WhatsApp"
-            style={{ width: 200, height: 200 }}
-          />
-        </div>
+          <div className="grid grid-cols-3 gap-6">
+  {/* Card WhatsApp */}
+  <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
+    <img src="/images/whatsapp-icon.svg" alt="WhatsApp" className="w-16 h-16 mb-4" />
+    <h3 className="text-xl font-semibold text-white mb-2">WhatsApp</h3>
+    {qrCode ? (
+      <button className="px-4 py-2 bg-green-600 rounded text-white" disabled>
+        Conectado
+      </button>
+    ) : (
+      <button
+        onClick={() => setModalOpen(true)}
+        className="px-4 py-2 bg-blue-600 rounded text-white hover:bg-blue-700"
+      >
+        Conectar
+      </button>
+    )}
+  </div>
+
+  {/* Aqui você mantém os outros cards (OLX, Webmotors, Mercado Livre, etc.) */}
+</div>
+
+{/* Modal de QR */}
+{isModalOpen && (
+  <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+    <div className="bg-gray-900 rounded-lg p-6 relative">
+      <button
+        onClick={() => setModalOpen(false)}
+        className="absolute top-2 right-2 text-white text-2xl leading-none"
+      >
+        &times;
+      </button>
+      <h2 className="text-white text-2xl mb-4">Escaneie com o WhatsApp</h2>
+      {qrCode ? (
+        <img
+          src={`https://api.qrserver.com/v1/create-qr-code?size=200x200&data=${encodeURIComponent(qrCode)}`}
+          alt="QR Code"
+          className="mx-auto"
+        />
+      ) : (
+        <p className="text-white">Aguardando QR Code…</p>
       )}
+    </div>
+  </div>
+)}
+
         </div>
       </div>
     );
