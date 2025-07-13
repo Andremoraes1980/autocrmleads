@@ -448,12 +448,12 @@ const renderConteudo = () => {
       </button>
       <h2 className="text-white text-2xl mb-4">Escaneie com o WhatsApp</h2>
       {qrCode ? (
-        <img
-          src={`https://api.qrserver.com/v1/create-qr-code?size=200x200&data=${encodeURIComponent(qrCode)}`}
-          alt="QR Code"
-          className="mx-auto"
-        />
-      ) : (
+  <img
+    src={qrCode.startsWith('data:image') ? qrCode : `data:image/png;base64,${qrCode}`}
+    alt="QR Code"
+    className="mx-auto"
+  />
+) : (
         <p className="text-white">Aguardando QR Code…</p>
       )}
     </div>
