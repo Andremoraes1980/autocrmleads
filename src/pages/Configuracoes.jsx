@@ -38,11 +38,19 @@ const [qrCode, setQrCode] = useState(null);
 
  // Quando estiver na aba "integracoes", conectamos ao socket e ouvimos o evento "qrCode"
    useEffect(() => {
+
         if (abaAtiva !== "integracoes") return;
-        const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL);
+
+        const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
+
+        transports: ["websocket"], // pula o polling
+        secure: true,              // garante HTTPS
+        });
+
         socket.on("qrCode", ({ qr }) => {
           setQrCode(qr);
         });
+        
         // limpa ao sair da aba
         return () => {
           socket.disconnect();
