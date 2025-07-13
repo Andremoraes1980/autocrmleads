@@ -1,5 +1,4 @@
 import { io } from "socket.io-client";
-const socket = io("http://localhost:3001"); // ajuste a porta conforme seu backend
 import React, { useState, useEffect, useRef } from "react";
 import styles from "./Conversa.module.css";
 import { supabase } from "../lib/supabaseClient";
@@ -721,9 +720,10 @@ const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
 
-
-
-
+const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
+  transports: ["websocket"],
+  secure: true
+});
 
 
 const fetchMensagens = async () => {
@@ -1059,10 +1059,14 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  const socket = io("http://localhost:3001");
+  const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
+    transports: ["websocket"],  // força WebSocket (opcional, mas ajuda a não cair em polling)
+    secure: true                // garante que vai usar wss://
+  });
   socket.on("audioReenviado", ({ mensagemId }) => {
     setEnviadosIphone(prev => ({ ...prev, [mensagemId]: true }));
   });
+
   return () => { socket.off("audioReenviado"); socket.disconnect(); }
 }, []);
 
