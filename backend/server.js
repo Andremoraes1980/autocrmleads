@@ -1,9 +1,11 @@
 // backend/server.js
 
 const express = require('express');
+const http = require('http');
+const app = express();
 const axios = require('axios');
 const cors = require('cors');
-const http = require('http');
+
 const server = http.createServer(app);
 require('dotenv').config();
 require('./jobs/agendador');
@@ -50,7 +52,7 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY // Service Role para inserção backend
 );
 
-const app = express();
+
 
 // Middleware para aceitar JSON
 app.use(express.json()); // <- MOVIDO PARA O TOPO
