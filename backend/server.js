@@ -3,8 +3,24 @@
 const express = require('express');
 const axios = require('axios');
 const cors = require('cors');
+const http = require('http');
+const server = http.createServer(app);
 require('dotenv').config();
 require('./jobs/agendador');
+
+const { Server } = require('socket.io');
+
+const io = new Server(server, {
+  cors: {
+    origin: [
+      "https://autocrmleads.com.br",
+      "https://autocrmleads.vercel.app",
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST"],
+    credentials: true
+  }
+});
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
@@ -420,6 +436,6 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
 
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`🚀 Backend rodando em http://localhost:${PORT}`);
 });
