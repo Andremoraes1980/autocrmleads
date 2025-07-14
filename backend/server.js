@@ -7,6 +7,8 @@ const http = require('http');
 const server = http.createServer(app);
 require('dotenv').config();
 require('./jobs/agendador');
+const { io: ioClient } = require('socket.io-client');
+
 
 const { Server } = require('socket.io');
 
@@ -20,6 +22,24 @@ const io = new Server(server, {
     methods: ["GET", "POST"],
     credentials: true
   }
+});
+
+// Conecta como cliente no provider do AWS
+const socketProvider = ioClient('https://socket.autocrmleads.com.br', {
+  // secure: true, etc (se necessário)
+});
+
+socketProvider.on('connect', () => {
+  console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
+});
+socketProvider.on('disconnect', () => {
+  console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
+});
+
+// Repasse do QR Code recebido do provider para todos frontends conectados
+socketProvider.on('qrCode', (data) => {
+  console.log('🟢 QR Code recebido do provider (AWS). Repassando ao frontend...');
+  io.emit('qrCode', data);
 });
 
 
