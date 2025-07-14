@@ -1,14 +1,20 @@
 // backend/server.js
 
+require('dotenv').config();
+require('./jobs/agendador');
+
 const express = require('express');
-const http = require('http');
 const app = express();
+
+const http = require('http');
+const server = http.createServer(app);
+
+
 const axios = require('axios');
 const cors = require('cors');
 
-const server = http.createServer(app);
-require('dotenv').config();
-require('./jobs/agendador');
+
+
 const { io: ioClient } = require('socket.io-client');
 
 
