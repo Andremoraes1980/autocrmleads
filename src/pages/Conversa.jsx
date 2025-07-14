@@ -720,7 +720,7 @@ const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
 
-const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
+const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
   transports: ["websocket"],
   secure: true
 });
@@ -1059,7 +1059,7 @@ useEffect(() => {
 }, []);
 
 useEffect(() => {
-  const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
+  const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
     transports: ["websocket"],  // força WebSocket (opcional, mas ajuda a não cair em polling)
     secure: true                // garante que vai usar wss://
   });

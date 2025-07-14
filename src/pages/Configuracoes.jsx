@@ -42,18 +42,12 @@ const [isModalOpen, setModalOpen] = useState(false);
 
         if (abaAtiva !== "integracoes") return;
 
-        const socket = io(import.meta.env.VITE_SOCKET_PROVIDER_URL, {
-
-        transports: ["websocket"], // pula o polling
-        secure: true,              // garante HTTPS
-        rejectUnauthorized: false
+        const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
+          transports: ["websocket"],
+          secure: true,
+          rejectUnauthorized: false
         });
-
-        socket.on('connect', () => console.log('🟢 Socket conectado'));
-        socket.on('qrCode', ({ qr }) => {
-          console.log('🟡 QR Code recebido:', qr);
-          setQrCode(qr);
-        });
+        
 
         socket.on('disconnect', () => console.log('🔴 Socket desconectado'));
 
