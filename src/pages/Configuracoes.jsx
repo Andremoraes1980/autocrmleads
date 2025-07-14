@@ -46,6 +46,7 @@ const [isModalOpen, setModalOpen] = useState(false);
 
         transports: ["websocket"], // pula o polling
         secure: true,              // garante HTTPS
+        rejectUnauthorized: false
         });
 
         socket.on('connect', () => console.log('🟢 Socket conectado'));
