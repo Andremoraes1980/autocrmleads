@@ -25,6 +25,9 @@ const io = new Server(server, {
     origin: [
       "https://autocrmleads.com.br",
       "https://autocrmleads.vercel.app",
+      "http://localhost:5001",
+      "https://autocrm-backend.onrender.com",  // pode deixar para testes
+      "https://socket.autocrmleads.com.br",
       "http://localhost:5173"
     ],
     methods: ["GET", "POST"],
@@ -33,9 +36,15 @@ const io = new Server(server, {
 });
 
 // Conecta como cliente no provider do AWS
-const socketProvider = ioClient('https://socket.autocrmleads.com.br', {
-  // secure: true, etc (se necessário)
+const socketProvider = ioClient("https://socket.autocrmleads.com.br", {
+  transports: ["websocket"],
+  secure: true,
+  reconnection: true,
+  extraHeaders: {
+    origin: "https://autocrm-backend.onrender.com"
+  }
 });
+
 
 socketProvider.on('connect', () => {
   console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
