@@ -47,6 +47,13 @@ const [isModalOpen, setModalOpen] = useState(false);
           secure: true,
           rejectUnauthorized: false
         });
+
+        +       
+       // Escuta o QR Code enviado pelo backend  
+       socket.on('qrCode', ({ qr }) => {
+         console.log('📷 QR Code recebido no frontend:', qr);
+         setQrCode(qr);
+       });
         
 
         socket.on('disconnect', () => console.log('🔴 Socket desconectado'));
@@ -437,6 +444,7 @@ const renderConteudo = () => {
     <div className="bg-gray-900 rounded-lg p-6 relative">
       <button
         onClick={() => setModalOpen(false)}
+        aria-label="Fechar modal de QR Code"
         className="absolute top-2 right-2 text-white text-2xl leading-none"
       >
         &times;
@@ -446,7 +454,7 @@ const renderConteudo = () => {
   <img
     src={qrCode.startsWith('data:image') ? qrCode : `data:image/png;base64,${qrCode}`}
     alt="QR Code"
-    className="mx-auto"
+    className="mx-auto w-64 h-64 object-contain"
   />
 ) : (
         <p className="text-white">Aguardando QR Code…</p>
