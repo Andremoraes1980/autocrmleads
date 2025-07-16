@@ -38,46 +38,35 @@ const [qrCode, setQrCode] = useState(null);
 const [isModalOpen, setModalOpen] = useState(false);
 
  // Quando estiver na aba "integracoes", conectamos ao socket e ouvimos o evento "qrCode"
-   useEffect(() => {
-
-        if (abaAtiva !== "integracoes") return;
-
-          // 👇 log da URL do socket
-        console.log("🔌 Conectando socket em:", import.meta.env.VITE_SOCKET_BACKEND_URL);
-
-
-        const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-          transports: ["websocket"],
-          secure: true,
-          rejectUnauthorized: false
-        });
-
-          // 👇 confirma conexão ao servidor
-  socket.on("connect", () => {
-    console.log("✅ Socket conectado, id:", socket.id);
-  });
-  // 👇 captura erros de conexão
-  socket.on("connect_error", (err) => {
-    console.error("❌ Erro de conexão socket:", err);
-  });
-
+  useEffect(() => {
+     console.log("📝 useEffect WhatsApp Modal, isModalOpen =", isModalOpen);
+     if (!isModalOpen) return;
   
-       // Escuta o QR Code enviado pelo backend  
-       socket.on('qrCode', ({ qr }) => {
-         console.log('📷 QR Code recebido no frontend:', qr);
-         setQrCode(qr);
-       });
-        
-
-        socket.on('disconnect', () => console.log('🔴 Socket desconectado'));
-
-        // limpa ao sair da aba
-        return () => {
-          console.log("⏹️ Desconectando socket e limpando QR");
-          socket.disconnect();
-          setQrCode(null);
-        };
-      }, [abaAtiva]);
+     console.log("🔌 Conectando socket em:", import.meta.env.VITE_SOCKET_BACKEND_URL);
+     const socket = io(
+       import.meta.env.VITE_SOCKET_BACKEND_URL,
+       { transports: ["websocket"], secure: true }
+     );
+  
+     socket.on("connect", () => {
+       console.log("✅ Socket conectado, id:", socket.id);
+       console.log("🚀 Solicitando QR Code ao provider");
+       socket.emit("gerarQRCode");
+     });
+     socket.on("connect_error", err => {
+       console.error("❌ Erro de conexão socket:", err);
+     });
+     socket.on("qrCode", ({ qr }) => {
+       console.log("📥 Evento qrCode recebido:", qr);
+       setQrCode(qr);
+     });
+  
+     return () => {
+       console.log("⏹️ Desconectando socket e limpando QR");
+       socket.disconnect();
+       setQrCode(null);
+     };
+   }, [isModalOpen]);
 
 
 
