@@ -175,7 +175,7 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
   <BotaoReenvioAudioLottie
     enviado={!!enviadosIphone?.[msg.id]}
     onReenviar={async () => {
-      const resposta = await fetch("http://localhost:5001/api/reenviar-arquivo", {
+      const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/reenviar-arquivo`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mensagemId: msg.id }),
@@ -728,7 +728,7 @@ const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
 
 const fetchMensagens = async () => {
   try {
-    const res = await fetch(`http://localhost:5001/api/mensagens/${leadId}`);
+    const res = await fetch(`${import.meta.env.VITE_API_URL}/api/mensagens/${leadId}`);
     const data = await res.json();
     console.log("🟢 Mensagens recebidas do back:", data);
     setMensagens(data || []);
@@ -962,7 +962,7 @@ const handleEnviarArquivo = async (e) => {
       remetente: usuarioAtual.nome,
     });
 
-    await fetch("http://localhost:5001/api/enviar-midia", {
+    await fetch("${import.meta.env.VITE_API_URL}/api/enviar-midia", {
   method: "POST",
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify({
@@ -1197,7 +1197,7 @@ useEffect(() => {
   useEffect(() => {
     if (!lead) return;
     async function carregarMensagens() {
-      const resposta = await fetch(`http://localhost:5001/api/mensagens/${lead.id}`);
+      const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/mensagens/${lead.id}`);
       const msgs = await resposta.json();
       // monta um objeto { [msg.id]: true } para cada msg com audio_reenviado === true
       const iniciais = {};
@@ -1430,7 +1430,7 @@ useEffect(() => {
       };
     
       try {
-        const res = await fetch("http://localhost:5001/api/enviar-midia", {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/enviar-midia`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1507,7 +1507,7 @@ useEffect(() => {
     };
   
     try {
-      const res = await fetch("http://localhost:5001/api/enviar-mensagem", {
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/enviar-mensagem`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),

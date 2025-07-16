@@ -67,6 +67,19 @@ io.on('connection', (socket) => {
   console.log(`👤 Cliente frontend conectado: ${socket.id}`);
   socket.on('disconnect', () => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
+
+    // Quando o provider enviar a mensagem recebida:
+  socket.on('mensagemRecebida', payload => {
+    console.log('📥 Recebido mensagemRecebida do provider:', payload);
+    io.emit('mensagemRecebida', payload);
+  });
+
+   // Quando o provider enviar áudio reenviado:
+   socket.on('audioReenviado', payload => {
+    console.log('🔊 Recebido audioReenviado do provider:', payload);
+    io.emit('audioReenviado', payload);
+  });
+  
   });
 });
 
@@ -284,6 +297,366 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
     return res.status(500).json({ error: err.message });
   }
 });
+
+app.post('/api/enviar-mensagem', async (req, res) => {
+  const {
+    para,
+    mensagem,
+    lead_id,
+    remetente_id,
+    remetente,
+    canal,
+    tipo,
+    telefone_cliente,
+    lida,
+  } = req.body;
+
+  // Logs para debug
+  console.log("Canal recebido do frontend:", canal);
+  console.log("Remetente recebido do frontend:", remetente);
+  console.log("Payload recebido:", req.body);
+
+  // Validação
+  if (!para || !mensagem || !lead_id || !remetente_id || !remetente) {
+    return res.status(400).json({ error: 'Campos obrigatórios faltando.' });
+  }
+
+  try {
+    // 1. Envia a mensagem ao provider via socket
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
+        7000
+      );
+      providerSocket.once('mensagemEnviada', (ok) => {
+        clearTimeout(timeout);
+        console.log("✅ Provider confirmou envio:", ok);
+        resolve(ok);
+      });
+      providerSocket.once('erroEnvio', (err) => {
+        clearTimeout(timeout);
+        console.error("❌ Provider retornou erro:", err);
+        reject(new Error(err.error || 'Falha no envio pelo provider'));
+      });
+      console.log("📡 Emitindo via socket → enviarMensagem");
+      providerSocket.emit('enviarMensagem', { para, mensagem });
+    });
+
+    // 2. Só depois do envio, busca dados extras do lead:
+    const { data: leadData, error: leadError } = await supabase
+      .from('leads')
+      .select('revenda_id,vendedor_id,telefone,nome')
+      .eq('id', lead_id)
+      .single();
+
+    if (leadError || !leadData) {
+      console.error("❌ Não foi possível buscar o lead:", leadError ? leadError.message : 'Lead não encontrado');
+      return res.status(400).json({ error: "Lead não encontrado para extrair revenda/vendedor_id" });
+    }
+    const revenda_id  = leadData.revenda_id;
+    const vendedor_id = leadData.vendedor_id;  
+    let remetente_nome = null;
+    if (remetente_id) {
+      const { data: userData } = await supabase
+        .from('usuarios')
+        .select('nome')
+        .eq('id', remetente_id)
+        .single();
+      remetente_nome = userData?.nome || null;
+    } else {
+      remetente_nome = leadData?.nome || leadData?.telefone || 'Cliente';
+    }  
+
+    const direcao = remetente_id ? 'saida' : 'entrada';
+
+    // 3. Salva mensagem no banco
+    const { error: insertError } = await supabase.from('mensagens').insert([{
+      lead_id,
+      revenda_id,
+      vendedor_id,
+      mensagem,
+      criado_em: new Date().toISOString(),
+      remetente_id,
+      remetente,
+      remetente_nome,
+      tipo: tipo || 'texto',
+      canal: canal || 'WhatsApp Cockpit',
+      direcao,
+      telefone_cliente: telefone_cliente || null,
+      lida: typeof lida === "boolean" ? lida : false,  
+    }]);
+
+    if (insertError) {
+      console.error("❌ Erro ao salvar no Supabase:", insertError.message);
+      return res.status(500).json({ error: 'Erro ao salvar no Supabase: ' + insertError.message });
+    }
+
+    console.log("💾 Mensagem salva com sucesso no Supabase");
+    res.json({ status: 'ok' });
+
+  } catch (err) {
+    console.error('❌ Erro geral no envio:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/enviar-midia', async (req, res) => {
+  console.log("🔵 Recebido POST /api/enviar-midia:", req.body);
+  let { telefone, arquivos, lead_id, remetente_id, remetente } = req.body;
+
+  if (!telefone || !arquivos?.length) {
+    return res.status(400).json({ error: "Telefone e arquivos obrigatórios" });
+  }
+
+  // Buscar lead (se quiser preencher revenda_id, vendedor_id)
+  let revenda_id = null, vendedor_id = null, remetente_nome = remetente;
+  if (lead_id) {
+    const { data: leadData, error: leadError } = await supabase
+      .from('leads')
+      .select('revenda_id,vendedor_id,nome')
+      .eq('id', lead_id)
+      .single();
+    if (!leadError && leadData) {
+      revenda_id = leadData.revenda_id;
+      vendedor_id = leadData.vendedor_id;
+      if (!remetente_nome) remetente_nome = leadData.nome;
+    }
+  }
+
+  for (let i = 0; i < arquivos.length; i++) {
+    let arquivo = arquivos[i];
+    if (arquivo.nome.endsWith('.webm') || arquivo.tipo === 'audio/webm') {
+      try {
+        const response = await axios.get(arquivo.url, { responseType: 'arraybuffer' });
+        const webmBuffer = Buffer.from(response.data, 'binary');
+        const oggBuffer = await converterWebmParaOgg(webmBuffer);
+
+        const oggName = arquivo.nome.replace(/\.webm$/, '.ogg');
+        const { data: upOgg, error: errOgg } = await supabase
+          .storage
+          .from('mensagens-arquivos')
+          .upload(oggName, oggBuffer, { contentType: 'audio/ogg' });
+
+        if (errOgg) throw new Error('Erro ao salvar .ogg no Storage: ' + errOgg.message);
+
+        const { data: urlData, error: urlErr } = await supabase
+          .storage
+          .from('mensagens-arquivos')
+          .getPublicUrl(oggName);
+
+        if (urlErr) throw new Error('Erro ao gerar URL pública .ogg: ' + urlErr.message);
+
+        arquivos[i] = {
+          url: urlData.publicUrl,
+          nome: oggName,
+          tipo: 'audio'
+        };
+      } catch (err) {
+        console.error('❌ Erro na conversão .webm → .ogg:', err);
+        return res.status(500).json({ error: 'Erro na conversão .webm para .ogg: ' + err.message });
+      }
+    }
+  }
+
+  try {
+    // Envia VIA SOCKET para o provider (igual já faz com enviar-mensagem)
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(
+        () => reject(new Error('⏱️ Provider não respondeu em 15 segundos')),
+        15000
+      );
+      providerSocket.once('midiaEnviada', (ok) => {
+        clearTimeout(timeout);
+        console.log("✅ Provider confirmou envio de mídia:", ok);
+        resolve(ok);
+      });
+      providerSocket.once('erroEnvioMidia', (err) => {
+        clearTimeout(timeout);
+        console.error("❌ Provider retornou erro na mídia:", err);
+        reject(new Error(err.error || 'Falha no envio de mídia pelo provider'));
+      });
+      console.log("📡 Emitindo via socket → enviarMidia");
+      providerSocket.emit('enviarMidia', { telefone, arquivos, lead_id, remetente_id, remetente });
+    });
+
+    // Monta array de arquivos e salva uma ÚNICA linha no Supabase, independente da quantidade de arquivos!
+    const arquivosArray = arquivos.map(arquivo => ({
+      url: arquivo.url,
+      nome: arquivo.nome,
+      tipo: arquivo.tipo || 'imagem'
+    }));
+
+    const { error: insertError } = await supabase.from('mensagens').insert([{
+      lead_id,
+      revenda_id,
+      vendedor_id,
+      mensagem: arquivosArray.map(a => a.nome).join(', '), // nomes dos arquivos juntos
+      canal: 'WhatsApp Cockpit',
+      criado_em: new Date().toISOString(),
+      remetente_id: remetente_id || null,
+      remetente: telefone,
+      remetente_nome,
+      tipo: 'multiarquivo',
+      arquivos: arquivosArray,
+      direcao: 'saida',
+      telefone_cliente: telefone,
+      lida: false
+    }]);
+    if (insertError) {
+      console.error('❌ Erro ao salvar mídia múltipla no Supabase:', insertError.message);
+      return res.status(500).json({ error: insertError.message });
+    }
+
+    res.json({ status: 'ok' });
+  } catch (err) {
+    console.error("❌ Erro geral ao enviar mídia:", err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/reenviar-arquivo', async (req, res) => {
+  const { mensagemId } = req.body;
+  if (!mensagemId) {
+    console.error('🔴 mensagemId obrigatório');
+    return res.status(400).json({ error: 'mensagemId obrigatório' });
+  }
+
+  // 1. Busca a mensagem original
+  console.log('🔵 1. Buscando mensagem no banco...', mensagemId);
+  const { data: mensagem, error } = await supabase
+    .from('mensagens')
+    .select('*')
+    .eq('id', mensagemId)
+    .single();
+
+  if (error || !mensagem || !mensagem.arquivos || !mensagem.arquivos.length) {
+    console.error('🔴 Mensagem não encontrada ou sem arquivos:', error);
+    return res.status(404).json({ error: 'Mensagem não encontrada ou sem arquivos' });
+  }
+
+  // 2. Busca o arquivo de áudio .ogg
+  const arquivoAudio = mensagem.arquivos.find(a => a.tipo === 'audio');
+  if (!arquivoAudio) {
+    console.error('🔴 Nenhum arquivo de áudio encontrado!');
+    return res.status(404).json({ error: 'Nenhum arquivo de áudio encontrado' });
+  }
+
+  // 3. Baixa o buffer do .ogg
+  let oggBuffer;
+  try {
+    console.log('🔵 Baixando .ogg:', arquivoAudio.url);
+    const response = await axios.get(arquivoAudio.url, { responseType: 'arraybuffer' });
+    oggBuffer = Buffer.from(response.data, 'binary');
+    console.log('🟢 OGG baixado com sucesso!');
+  } catch (e) {
+    console.error('🔴 Erro ao baixar áudio:', e.message);
+    return res.status(500).json({ error: 'Erro ao baixar áudio: ' + e.message });
+  }
+
+  // 4. Converte para mp3
+  let mp3Buffer;
+  try {
+    console.log('🔵 Convertendo ogg para mp3...');
+    mp3Buffer = await converterOggParaMp3(oggBuffer);
+    console.log('🟢 Conversão para mp3 concluída!');
+  } catch (e) {
+    console.error('🔴 Erro na conversão:', e.message);
+    return res.status(500).json({ error: 'Erro na conversão: ' + e.message });
+  }
+
+  // 5. Faz upload do mp3 convertido no Storage e gera a URL pública
+  let urlMp3Reenviado = null;
+  try {
+    const mp3Name = arquivoAudio.nome.replace(/\.ogg$/, `_${Date.now()}_reenviado.mp3`);
+    console.log('🔵 Enviando mp3 para storage:', mp3Name);
+    const { data: upMp3, error: errMp3 } = await supabase
+      .storage
+      .from('mensagens-arquivos')
+      .upload(mp3Name, mp3Buffer, { contentType: 'audio/mp3' });
+    if (errMp3) {
+      console.error('🔴 Erro ao salvar mp3 no Storage:', errMp3.message);
+      return res.status(500).json({ error: 'Erro ao salvar mp3 no Storage: ' + errMp3.message });
+    }
+
+    console.log('🔵 Gerando URL pública do mp3...');
+    const { data: urlData, error: urlErr } = await supabase
+      .storage
+      .from('mensagens-arquivos')
+      .getPublicUrl(mp3Name);
+    if (urlErr) {
+      console.error('🔴 Erro ao gerar URL pública mp3:', urlErr.message);
+      return res.status(500).json({ error: 'Erro ao gerar URL pública mp3: ' + urlErr.message });
+    }
+
+    urlMp3Reenviado = urlData.publicUrl;
+    console.log('🟢 URL pública mp3:', urlMp3Reenviado);
+  } catch (e) {
+    console.error('🔴 Erro no upload/URL do mp3:', e.message);
+    return res.status(500).json({ error: 'Erro no upload/URL do mp3: ' + e.message });
+  }
+
+  // 6. Solicita o envio ao provider via Socket.IO e aguarda resposta
+  try {
+    console.log('🔵 Emitindo via socket reenviarAudioIphone...');
+    providerSocket.emit('reenviarAudioIphone', {
+      telefone: mensagem.remetente,
+      mp3Base64: mp3Buffer.toString('base64'),
+      mensagemId: mensagem.id
+    });
+
+    // Aguarda confirmação (timeout 15s)
+    const resultado = await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        console.error('🔴 Provider não respondeu em 15s');
+        reject(new Error('Provider não respondeu em 15s'));
+      }, 15000);
+
+      providerSocket.once('audioReenviado', (data) => {
+        clearTimeout(timeout);
+        console.log('🟢 Provider confirmou envio:', data);
+        resolve(data);
+      });
+      providerSocket.once('erroReenvioAudio', (err) => {
+        clearTimeout(timeout);
+        console.error('🔴 Provider retornou erro:', err);
+        reject(new Error(err || "Falha ao reenviar áudio"));
+      });
+    });
+
+    // 7. Atualiza mensagem original no banco com o status de reenvio
+    console.log('🔵 Atualizando mensagem original no banco...');
+    await supabase.from('mensagens')
+      .update({
+        mensagem_id_externo: resultado.mensagemId,
+        audio_reenviado: true,
+        audio_reenviado_em: new Date().toISOString(),
+        audio_reenviado_url: urlMp3Reenviado
+      })
+      .eq('id', mensagem.id);
+
+    console.log('🟢 Reenvio concluído com sucesso!');
+    return res.json({ status: 'ok', mensagemId: resultado.mensagemId });
+  } catch (e) {
+    console.error('🔴 Erro ao reenviar via provider:', e.message);
+    return res.status(500).json({ error: 'Erro ao reenviar via provider: ' + e.message });
+  }
+});
+
+app.get('/api/mensagens/:lead_id', async (req, res) => {
+  const { lead_id } = req.params;
+  const { data, error } = await supabase
+    .from('mensagens')
+    .select('*')
+    .eq('lead_id', lead_id)
+    .order('criado_em', { ascending: true });
+
+  if (error) {
+    console.error("❌ Erro ao buscar mensagens:", error.message);
+    return res.status(500).json({ error: error.message });
+  }
+  res.json(data);
+});
+
 
 // --- Rota: Listar automações (por revenda) ---
 app.get('/api/automacoes', async (req, res) => {
