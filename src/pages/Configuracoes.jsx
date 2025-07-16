@@ -42,13 +42,26 @@ const [isModalOpen, setModalOpen] = useState(false);
 
         if (abaAtiva !== "integracoes") return;
 
+          // 👇 log da URL do socket
+        console.log("🔌 Conectando socket em:", import.meta.env.VITE_SOCKET_BACKEND_URL);
+
+
         const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
           transports: ["websocket"],
           secure: true,
           rejectUnauthorized: false
         });
 
-        +       
+          // 👇 confirma conexão ao servidor
+  socket.on("connect", () => {
+    console.log("✅ Socket conectado, id:", socket.id);
+  });
+  // 👇 captura erros de conexão
+  socket.on("connect_error", (err) => {
+    console.error("❌ Erro de conexão socket:", err);
+  });
+
+  
        // Escuta o QR Code enviado pelo backend  
        socket.on('qrCode', ({ qr }) => {
          console.log('📷 QR Code recebido no frontend:', qr);
@@ -60,6 +73,7 @@ const [isModalOpen, setModalOpen] = useState(false);
 
         // limpa ao sair da aba
         return () => {
+          console.log("⏹️ Desconectando socket e limpando QR");
           socket.disconnect();
           setQrCode(null);
         };
