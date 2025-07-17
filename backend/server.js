@@ -9,6 +9,8 @@ const app = express();
 
 const http = require('http');
 const server = http.createServer(app);
+const QRCode = require('qrcode');
+
 
 
 const axios = require('axios');
@@ -57,8 +59,17 @@ socketProvider.on('disconnect', () => {
 });
 
 socketProvider.on('qrCode', (data) => {
-  console.log('📷 QR Code recebido do provider:', data);
-  io.emit('qrCode', data);
+    console.log('📷 Payload do QR recebido do provider:', data);
+  // data.qr é a string do payload
+  QRCode.toDataURL(data.qr)
+    .then(url => {
+      console.log('✅ DataURL gerado do QR:', url.slice(0,30) + '…');
+      io.emit('qrCode', { qr: url });
+    })
+    .catch(err => {
+      console.error('❌ Erro ao gerar DataURL do QR:', err);
+    });
+  
 });
 
 

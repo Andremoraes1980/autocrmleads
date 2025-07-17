@@ -17,6 +17,7 @@
         "mailparser": "^3.7.3",
         "node-cron": "^4.2.0",
         "node-fetch": "^2.7.0",
+        "qrcode": "^1.5.4",
         "socket.io": "^4.8.1",
         "socket.io-client": "^4.8.1",
         "timezone": "^1.0.23",
