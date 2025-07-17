@@ -65,8 +65,11 @@ socketProvider.on('qrCode', (data) => {
 // === Etapa 2: listener de conexões dos frontends ===
 io.on('connection', (socket) => {
   console.log(`👤 Cliente frontend conectado: ${socket.id}`);
-  socket.on('disconnect', () => {
-    console.log(`❌ Cliente desconectado: ${socket.id}`);
+
+  socket.on('gerarQRCode', () => {
+    console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
+    socketProvider.emit('gerarQRCode'); // Repasse para o provider via socket
+  });  
 
     // Quando o provider enviar a mensagem recebida:
   socket.on('mensagemRecebida', payload => {
@@ -79,6 +82,9 @@ io.on('connection', (socket) => {
     console.log('🔊 Recebido audioReenviado do provider:', payload);
     io.emit('audioReenviado', payload);
   });
+
+  socket.on('disconnect', () => {
+    console.log(`❌ Cliente desconectado: ${socket.id}`);
   
   });
 });
