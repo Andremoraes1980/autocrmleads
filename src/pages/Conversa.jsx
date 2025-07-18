@@ -721,9 +721,7 @@ const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
 
 const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-  transports: ["websocket"],
-  secure: true
-});
+  transports: ["websocket"],  secure: true});
 
 
 const fetchMensagens = async () => {
@@ -1063,12 +1061,25 @@ useEffect(() => {
     transports: ["websocket"],  // força WebSocket (opcional, mas ajuda a não cair em polling)
     secure: true                // garante que vai usar wss://
   });
+
+  // Escuta quando áudio for reenviado manualmente
   socket.on("audioReenviado", ({ mensagemId }) => {
     setEnviadosIphone(prev => ({ ...prev, [mensagemId]: true }));
   });
 
-  return () => { socket.off("audioReenviado"); socket.disconnect(); }
+  // Escuta nova mensagem recebida via socket
+  socket.on("mensagemRecebida", ({ lead_id, mensagem }) => {
+    console.log("📨 Nova mensagem recebida via socket:", mensagem);
+    setMensagens(prev => [...prev, mensagem]); // você pode adaptar se usar agrupamento por lead_id
+  });
+
+  return () => {
+    socket.off("audioReenviado");
+    socket.off("mensagemRecebida");
+    socket.disconnect();
+  };
 }, []);
+
 
 
 
@@ -1507,52 +1518,50 @@ useEffect(() => {
     };
   
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/enviar-mensagem`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+      if (!socket || !socket.connected) {
+        alert("Conexão com servidor perdida. Recarregue a página.");
+        return;
+      }
+    
+      console.log("📤 Enviando mensagem via socket:", payload);
+      socket.emit("mensagemTexto", payload, (resposta) => {
+        if (resposta?.status === "ok") {
+          setMensagem("");
+          fetchMensagens();
+    
+          // dispara automação no backend
+          try {
+            console.log("🚀 Disparando automação evento-mensagem:", {
+              lead_id: leadId,
+              tipo: "texto",
+              direcao: "saida",
+              usuario_id: usuarioAtual?.id || null,
+              conteudo: mensagem,
+            });
+    
+            fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                lead_id: leadId,
+                tipo: "texto",
+                direcao: "saida",
+                usuario_id: usuarioAtual?.id || null,
+                conteudo: mensagem,
+              }),
+            });
+          } catch (err) {
+            console.error("❌ Erro ao acionar automação backend:", err);
+          }
+        } else {
+          const erro = resposta?.error || "Erro desconhecido no envio via socket.";
+          alert("Erro ao enviar mensagem: " + erro);
+        }
       });
-      const result = await res.json();
-      if (result.status === "ok") {
-        setMensagem(""); // limpa input
-        await fetchMensagens(); // atualiza histórico imediatamente
-      
-        // NOVO: dispara automação de status no backend CRM
-        try {
-  console.log("🚀 Disparando automação evento-mensagem:", {
-    lead_id: leadId,
-    tipo: "texto",
-    direcao: "saida",
-    usuario_id: usuarioAtual?.id || null,
-    conteudo: mensagem,
-  });
-
-  await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      lead_id: leadId,
-      tipo: "texto", // ou "audio"/"imagem" se for o caso
-      direcao: "saida",
-      usuario_id: usuarioAtual?.id || null,
-      conteudo: mensagem, // ou mensagemComPlaceholders se preferir
-    }),
-  });
-} catch (err) {
-  console.error("❌ Erro ao acionar automação backend:", err);
-}
-
-      }
-      
-            
-      else {
-        const erro = result.error || "Erro desconhecido.";
-        alert("Erro ao enviar mensagem: " + erro);
-      }
     } catch (err) {
       alert("Erro ao enviar mensagem: " + (err.message || "erro desconhecido"));
     }
-  };  
+     };  
   
 
   const handleToggleTemp = async () => {
