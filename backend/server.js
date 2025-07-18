@@ -3,25 +3,18 @@
 require('dotenv').config();
 console.log('🔍 PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 require('./jobs/agendador');
+const axios = require('axios');
+const cors = require('cors');
+const { io: ioClient } = require('socket.io-client');
 
 const express = require('express');
 const app = express();
-
 const http = require('http');
+const socketIo = require('socket.io');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
-
-
-
-const axios = require('axios');
-const cors = require('cors');
-
-
-
-const { io: ioClient } = require('socket.io-client');
-
-
 const { Server } = require('socket.io');
+
 
 const io = new Server(server, {
   cors: {
@@ -40,43 +33,57 @@ const io = new Server(server, {
 
 // Conecta como cliente no provider do AWS
 const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
-
   transports: ["websocket"],
   secure: true,
   reconnection: true,
-  extraHeaders: {
-    origin: "https://autocrm-backend.onrender.com"
-  }
 });
+
 console.log('🔌 Tentando conectar ao provider...');
 
-
+// ✅ Conexão bem-sucedida
 socketProvider.on('connect', () => {
   console.log('🟢 Conectado ao provider do WhatsApp (AWS)');
 });
+
+// 🔴 Desconectado
 socketProvider.on('disconnect', () => {
   console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
 });
 
-socketProvider.on('qrCode', (data) => {
-  console.log('📷 Payload do QR recebido do provider:', data);
+// ✅ DEVE vir depois do .on('connect') para ter contexto real
+console.log("📡 socketProvider conectado?", socketProvider.connected);
 
-  const qrString = typeof data === 'string' ? data : data?.qr;
-
-  if (!qrString) {
-    console.error('❌ QR inválido recebido:', data);
-    return;
-  }
-
-  QRCode.toDataURL(qrString)
-    .then(url => {
-      console.log('✅ DataURL gerado do QR:', url.slice(0,30) + '…');
-      io.emit('qrCode', { qr: url });
-    })
-    .catch(err => {
-      console.error('❌ Erro ao gerar DataURL do QR:', err);
-    });
+// ✅ NOVO: log genérico para capturar qualquer evento emitido pelo provider
+socketProvider.onAny((event, ...args) => {
+  console.log('📡 Evento recebido de provider:', event, args);
 });
+
+// ✅ Listener específico para qrCode
+io.on('connection', (socket) => {
+  console.log("📡 Nova conexão recebida:", socket.id);
+
+  socket.on('qrCode', (data) => {
+    console.log("📷 Payload do QR recebido do provider:", data);
+
+    const qrString = typeof data === 'string' ? data : data?.qr;
+
+    if (!qrString) {
+      console.error('❌ QR inválido recebido:', data);
+      return;
+    }
+
+    QRCode.toDataURL(qrString)
+      .then(url => {
+        console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
+        io.emit('qrCode', { qr: url });
+      })
+      .catch(err => {
+        console.error('❌ Erro ao gerar DataURL do QR:', err);
+      });
+  });
+});
+
+
 
 
 
@@ -885,5 +892,6 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
 // Inicializa servidor
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Backend rodando em http://localhost:${PORT}`);
+  console.log(`🚀 Backend escutando na porta ${PORT}`);
+
 });
