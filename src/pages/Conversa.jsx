@@ -1058,9 +1058,10 @@ useEffect(() => {
 
 useEffect(() => {
   const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-    transports: ["websocket"],  // força WebSocket (opcional, mas ajuda a não cair em polling)
-    secure: true                // garante que vai usar wss://
+    transports: ["websocket", "polling"], // permite fallback
+    secure: true
   });
+  
 
   // Escuta quando áudio for reenviado manualmente
   socket.on("audioReenviado", ({ mensagemId }) => {
