@@ -720,9 +720,6 @@ const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
 
-const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-  transports: ["websocket"],  secure: true});
-
 
 const fetchMensagens = async () => {
   try {
