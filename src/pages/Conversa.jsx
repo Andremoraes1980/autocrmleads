@@ -719,6 +719,8 @@ const [audioParaEnviar, setAudioParaEnviar] = useState(null);
 const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
+const socketRef = useRef(null);
+
 
 
 const fetchMensagens = async () => {
@@ -1039,35 +1041,40 @@ useEffect(() => {
 useEffect(() => {
   const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
     transports: ["websocket", "polling"],
-    secure: true
+    secure: true,
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 2000,
   });
 
-  // Entra na sala específica do lead
-  socket.emit("entrarNaSala", { lead_id: leadId });
+  socketRef.current = socket;
 
-  // Listener para áudio reenviado (mantido)
+  socketRef.current.emit("entrarNaSala", { lead_id: leadId });
+
+  socket.on("disconnect", (reason) => {
+    console.warn("🔌 Socket desconectado:", reason);
+  });
+
   socket.on("audioReenviado", ({ mensagemId }) => {
-    setEnviadosIphone(prev => ({ ...prev, [mensagemId]: true }));
+    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
   });
 
-  // Listener de mensagens (filtrado por lead_id)
-  const handleNovaMensagem = ({ lead_id, mensagem }) => {
+  socket.on("mensagemRecebida", ({ lead_id, mensagem }) => {
     if (lead_id === leadId) {
       console.log("📨 [Socket] Mensagem nova do lead atual:", mensagem);
-      setMensagens(prev => [...prev, mensagem]);
+      setMensagens((prev) => [...prev, mensagem]);
     } else {
-      console.log("📭 [Socket] Ignorado — lead diferente:", lead_id);
+      console.log("📭 [Socket] Ignorada — outro lead:", lead_id);
     }
-  };
-
-  socket.on("mensagemRecebida", handleNovaMensagem);
+  });
 
   return () => {
     socket.off("audioReenviado");
-    socket.off("mensagemRecebida", handleNovaMensagem);
+    socket.off("mensagemRecebida");
     socket.disconnect();
   };
 }, [leadId]);
+
 
 
 
@@ -1507,13 +1514,14 @@ useEffect(() => {
     };
   
     try {
-      if (!socket || !socket.connected) {
+      if (!socketRef.current || !socketRef.current.connected) {
+
         alert("Conexão com servidor perdida. Recarregue a página.");
         return;
       }
     
       console.log("📤 Enviando mensagem via socket:", payload);
-      socket.emit("mensagemTexto", payload, (resposta) => {
+      socketRef.current.emit("mensagemTexto", payload, (resposta) => {
         if (resposta?.status === "ok") {
           setMensagem("");
           fetchMensagens();
