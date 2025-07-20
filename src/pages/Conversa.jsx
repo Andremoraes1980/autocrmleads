@@ -1004,23 +1004,6 @@ const inserirFrasePronta = (texto) => {
   setMostrarFrasesProntas(false);
 };
 
-useEffect(() => {
-  function handleNovaMensagem(data) {
-    console.log("🔔 Nova mensagem recebida via socket:", data);
-    // Se for do lead atual, atualiza a lista de mensagens
-    if (data.lead_id === leadId) {
-      setMensagens(mensagensAntigas => [...mensagensAntigas, data.mensagem]);
-    }
-  }
-
-  socket.on("mensagemRecebida", handleNovaMensagem);
-
-  // Limpeza ao desmontar
-  return () => {
-    socket.off("mensagemRecebida", handleNovaMensagem);
-  };
-}, [leadId]);
-
 
 useEffect(() => {
   // Mensagens normais
@@ -1058,28 +1041,36 @@ useEffect(() => {
 
 useEffect(() => {
   const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-    transports: ["websocket", "polling"], // permite fallback
+    transports: ["websocket", "polling"],
     secure: true
   });
-  
 
-  // Escuta quando áudio for reenviado manualmente
+  // Entra na sala específica do lead
+  socket.emit("entrarNaSala", { lead_id: leadId });
+
+  // Listener para áudio reenviado (mantido)
   socket.on("audioReenviado", ({ mensagemId }) => {
     setEnviadosIphone(prev => ({ ...prev, [mensagemId]: true }));
   });
 
-  // Escuta nova mensagem recebida via socket
-  socket.on("mensagemRecebida", ({ lead_id, mensagem }) => {
-    console.log("📨 Nova mensagem recebida via socket:", mensagem);
-    setMensagens(prev => [...prev, mensagem]); // você pode adaptar se usar agrupamento por lead_id
-  });
+  // Listener de mensagens (filtrado por lead_id)
+  const handleNovaMensagem = ({ lead_id, mensagem }) => {
+    if (lead_id === leadId) {
+      console.log("📨 [Socket] Mensagem nova do lead atual:", mensagem);
+      setMensagens(prev => [...prev, mensagem]);
+    } else {
+      console.log("📭 [Socket] Ignorado — lead diferente:", lead_id);
+    }
+  };
+
+  socket.on("mensagemRecebida", handleNovaMensagem);
 
   return () => {
     socket.off("audioReenviado");
-    socket.off("mensagemRecebida");
+    socket.off("mensagemRecebida", handleNovaMensagem);
     socket.disconnect();
   };
-}, []);
+}, [leadId]);
 
 
 

@@ -61,6 +61,17 @@ socketProvider.onAny((event, ...args) => {
 io.on('connection', (socket) => {
   console.log("🟢 Cliente conectado:", socket.id);
 
+  socket.on('entrarNaSala', ({ lead_id }) => {
+    if (lead_id) {
+      const room = `lead-${lead_id}`;
+      socket.join(room);
+      console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
+    } else {
+      console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
+    }
+  });
+
+
   // 1. Recebe pedido para gerar QR Code
   socket.on('gerarQRCode', () => {
     console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
@@ -69,9 +80,17 @@ io.on('connection', (socket) => {
 
   // 2. Repassa mensagens recebidas do provider
   socketProvider.on('mensagemRecebida', (payload) => {
+    const { lead_id } = payload;
     console.log('📥 Recebido mensagemRecebida do provider:', payload);
-    io.emit('mensagemRecebida', payload);
+  
+    if (lead_id) {
+      io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
+      console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
+    } else {
+      console.warn('⚠️ Payload sem lead_id. Não foi possível emitir mensagem para sala específica.');
+    }
   });
+  
 
   socketProvider.on('audioReenviado', (payload) => {
     console.log('🔊 Recebido audioReenviado do provider:', payload);
@@ -82,6 +101,13 @@ io.on('connection', (socket) => {
   socket.on("mensagemTexto", async (payload, callback) => {
     console.log("📨 [socket] Recebida mensagemTexto:", payload);
     // ... (mesma lógica que você já tem para envio e gravação)
+  });
+
+  socket.on('entrarNaSala', ({ lead_id }) => {
+    if (lead_id) {
+      socket.join(`lead-${lead_id}`);
+      console.log(`👥 Socket ${socket.id} entrou na sala lead-${lead_id}`);
+    }
   });
 
   socket.on('qrCode', (data) => {
