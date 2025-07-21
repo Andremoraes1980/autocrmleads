@@ -103,6 +103,7 @@ io.on('connection', (socket) => {
   
     try {
       // Repassa a mensagem para o provider
+      console.log("🟡 Emitindo enviarMensagem para o provider", { para, mensagem });
       socketProvider.emit('enviarMensagem', payload);
   
       // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
