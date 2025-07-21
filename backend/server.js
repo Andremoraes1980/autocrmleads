@@ -407,7 +407,7 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         console.log("✅ Provider confirmou envio:", ok);
         resolve(ok);
       });
-      socketProvider.once('erroEnvio', (err) => {
+      providerSocket.once('erroEnvio', (err) => {
         clearTimeout(timeout);
         console.error("❌ Provider retornou erro:", err);
         reject(new Error(err.error || 'Falha no envio pelo provider'));
