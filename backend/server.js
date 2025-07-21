@@ -100,11 +100,22 @@ io.on('connection', (socket) => {
   // 3. Mensagem enviada do frontend para o provider
   socket.on("mensagemTexto", async (payload, callback) => {
     console.log("📨 [socket] Recebida mensagemTexto:", payload);
-  
+
     try {
-      // Repassa a mensagem para o provider
-      console.log("🟡 Emitindo enviarMensagem para o provider", { para, mensagem });
-      socketProvider.emit('enviarMensagem', payload);
+  
+     // Extrai as variáveis certas
+     const para = payload.para || payload.telefone_cliente;
+     const mensagem = payload.mensagem;
+ 
+     if (!para || !mensagem) {
+       console.error("❌ Falta telefone ou mensagem no payload:", payload);
+       if (callback) callback({ status: 'erro', error: 'Telefone ou mensagem ausente.' });
+       return;
+     }
+ 
+     // Log detalhado (agora variáveis existem!)
+     console.log("🟡 Emitindo enviarMensagem para o provider", { para, mensagem });
+     socketProvider.emit('enviarMensagem', { para, mensagem });
   
       // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
       socketProvider.once('mensagemEnviada', (ok) => {
