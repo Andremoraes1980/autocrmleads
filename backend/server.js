@@ -58,6 +58,26 @@ socketProvider.onAny((event, ...args) => {
   console.log('📡 Evento recebido de provider:', event, args);
 });
 
+// 2. Repassa mensagens recebidas do provider
+socketProvider.on('mensagemRecebida', (payload) => {
+  const { lead_id } = payload;
+  console.log('📥 Recebido mensagemRecebida do provider:', payload);
+
+  if (lead_id) {
+    io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
+    console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
+  } else {
+    console.warn('⚠️ Payload sem lead_id. Não foi possível emitir mensagem para sala específica.');
+  }
+});
+
+socketProvider.on('audioReenviado', (payload) => {
+  console.log('🔊 Recebido audioReenviado do provider:', payload);
+  io.emit('audioReenviado', payload);
+});
+
+
+
 io.on('connection', (socket) => {
   console.log("🟢 Cliente conectado:", socket.id);
 
@@ -76,27 +96,9 @@ io.on('connection', (socket) => {
   socket.on('gerarQRCode', () => {
     console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
     socketProvider.emit('gerarQRCode');
-  });
+  }); 
 
-  // 2. Repassa mensagens recebidas do provider
-  socketProvider.on('mensagemRecebida', (payload) => {
-    const { lead_id } = payload;
-    console.log('📥 Recebido mensagemRecebida do provider:', payload);
   
-    if (lead_id) {
-      io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
-      console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
-    } else {
-      console.warn('⚠️ Payload sem lead_id. Não foi possível emitir mensagem para sala específica.');
-    }
-  });
-  
-
-  socketProvider.on('audioReenviado', (payload) => {
-    console.log('🔊 Recebido audioReenviado do provider:', payload);
-    io.emit('audioReenviado', payload);
-  });
-
   // 3. Mensagem enviada do frontend para o provider
   socket.on("mensagemTexto", async (payload, callback) => {
     console.log("📨 [socket] Recebida mensagemTexto:", payload);
@@ -161,7 +163,6 @@ io.on('connection', (socket) => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
 });
-
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
