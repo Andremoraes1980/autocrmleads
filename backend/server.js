@@ -100,7 +100,22 @@ io.on('connection', (socket) => {
   // 3. Mensagem enviada do frontend para o provider
   socket.on("mensagemTexto", async (payload, callback) => {
     console.log("📨 [socket] Recebida mensagemTexto:", payload);
-    // ... (mesma lógica que você já tem para envio e gravação)
+  
+    try {
+      // Repassa a mensagem para o provider
+      socketProvider.emit('enviarMensagem', payload);
+  
+      // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
+      socketProvider.once('mensagemEnviada', (ok) => {
+        if (callback) callback({ status: 'ok', ...ok });
+      });
+      socketProvider.once('erroEnvio', (err) => {
+        if (callback) callback({ status: 'erro', ...err });
+      });
+    } catch (err) {
+      console.error('❌ Erro ao repassar para provider:', err);
+      if (callback) callback({ status: 'erro', error: err.message });
+    }
   });
 
   socket.on('entrarNaSala', ({ lead_id }) => {
@@ -134,11 +149,6 @@ io.on('connection', (socket) => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
 });
-
-
-  
-
-
 
 
 
@@ -383,18 +393,18 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
         7000
       );
-      providerSocket.once('mensagemEnviada', (ok) => {
+      socketProvider.once('mensagemEnviada', (ok) => {
         clearTimeout(timeout);
         console.log("✅ Provider confirmou envio:", ok);
         resolve(ok);
       });
-      providerSocket.once('erroEnvio', (err) => {
+      socketProvider.once('erroEnvio', (err) => {
         clearTimeout(timeout);
         console.error("❌ Provider retornou erro:", err);
         reject(new Error(err.error || 'Falha no envio pelo provider'));
       });
       console.log("📡 Emitindo via socket → enviarMensagem");
-      providerSocket.emit('enviarMensagem', { para, mensagem });
+      socketProvider.emit('enviarMensagem', { para, mensagem });
     });
 
     // 2. Só depois do envio, busca dados extras do lead:
@@ -520,18 +530,18 @@ app.post('/api/enviar-midia', async (req, res) => {
         () => reject(new Error('⏱️ Provider não respondeu em 15 segundos')),
         15000
       );
-      providerSocket.once('midiaEnviada', (ok) => {
+      socketProvider.once('midiaEnviada', (ok) => {
         clearTimeout(timeout);
         console.log("✅ Provider confirmou envio de mídia:", ok);
         resolve(ok);
       });
-      providerSocket.once('erroEnvioMidia', (err) => {
+      socketProvider.once('erroEnvioMidia', (err) => {
         clearTimeout(timeout);
         console.error("❌ Provider retornou erro na mídia:", err);
         reject(new Error(err.error || 'Falha no envio de mídia pelo provider'));
       });
       console.log("📡 Emitindo via socket → enviarMidia");
-      providerSocket.emit('enviarMidia', { telefone, arquivos, lead_id, remetente_id, remetente });
+      socketProvider.emit('enviarMidia', { telefone, arquivos, lead_id, remetente_id, remetente });
     });
 
     // Monta array de arquivos e salva uma ÚNICA linha no Supabase, independente da quantidade de arquivos!
@@ -653,7 +663,7 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
   // 6. Solicita o envio ao provider via Socket.IO e aguarda resposta
   try {
     console.log('🔵 Emitindo via socket reenviarAudioIphone...');
-    providerSocket.emit('reenviarAudioIphone', {
+    socketProvider.emit('reenviarAudioIphone', {
       telefone: mensagem.remetente,
       mp3Base64: mp3Buffer.toString('base64'),
       mensagemId: mensagem.id
@@ -666,12 +676,12 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
         reject(new Error('Provider não respondeu em 15s'));
       }, 15000);
 
-      providerSocket.once('audioReenviado', (data) => {
+      socketProvider.once('audioReenviado', (data) => {
         clearTimeout(timeout);
         console.log('🟢 Provider confirmou envio:', data);
         resolve(data);
       });
-      providerSocket.once('erroReenvioAudio', (err) => {
+      socketProvider.once('erroReenvioAudio', (err) => {
         clearTimeout(timeout);
         console.error('🔴 Provider retornou erro:', err);
         reject(new Error(err || "Falha ao reenviar áudio"));
