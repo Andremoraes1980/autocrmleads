@@ -132,12 +132,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('entrarNaSala', ({ lead_id }) => {
-    if (lead_id) {
-      socket.join(`lead-${lead_id}`);
-      console.log(`👥 Socket ${socket.id} entrou na sala lead-${lead_id}`);
-    }
-  });
+  
 
   socket.on('qrCode', (data) => {
     console.log("📷 Payload do QR recebido do provider:", data);
