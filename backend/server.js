@@ -98,42 +98,7 @@ io.on('connection', (socket) => {
     socketProvider.emit('gerarQRCode');
   }); 
 
-  
-  // 3. Mensagem enviada do frontend para o provider
-  socket.on("mensagemTexto", async (payload, callback) => {
-    console.log("📨 [socket] Recebida mensagemTexto:", payload);
-
-    try {
-  
-     // Extrai as variáveis certas
-     const para = payload.para || payload.telefone_cliente;
-     const mensagem = payload.mensagem;
- 
-     if (!para || !mensagem) {
-       console.error("❌ Falta telefone ou mensagem no payload:", payload);
-       if (callback) callback({ status: 'erro', error: 'Telefone ou mensagem ausente.' });
-       return;
-     }
- 
-     // Log detalhado (agora variáveis existem!)
-     console.log("🟡 Emitindo enviarMensagem para o provider", { para, mensagem });
-     socketProvider.emit('enviarMensagem', { para, mensagem });
-     console.log('📲 [PROVIDER DEBUG] Recebeu enviarMensagem:', para, mensagem);
-  
-      // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
-      socketProvider.once('mensagemEnviada', (ok) => {
-        if (callback) callback({ status: 'ok', ...ok });
-      });
-      socketProvider.once('erroEnvio', (err) => {
-        if (callback) callback({ status: 'erro', ...err });
-      });
-    } catch (err) {
-      console.error('❌ Erro ao repassar para provider:', err);
-      if (callback) callback({ status: 'erro', error: err.message });
-    }
-  });
-
-  
+    
 
   socket.on('qrCode', (data) => {
     console.log("📷 Payload do QR recebido do provider:", data);
@@ -407,7 +372,7 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         console.log("✅ Provider confirmou envio:", ok);
         resolve(ok);
       });
-      providerSocket.once('erroEnvio', (err) => {
+      socketProvider.once('erroEnvio', (err) => {
         clearTimeout(timeout);
         console.error("❌ Provider retornou erro:", err);
         reject(new Error(err.error || 'Falha no envio pelo provider'));

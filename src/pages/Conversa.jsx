@@ -1437,7 +1437,8 @@ useEffect(() => {
       };
     
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/api/enviar-midia`, {
+        const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/enviar-midia`, { 
+
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
@@ -1514,51 +1515,53 @@ useEffect(() => {
     };
   
     try {
-      if (!socketRef.current || !socketRef.current.connected) {
+      const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/enviar-mensagem`, { 
 
-        alert("Conexão com servidor perdida. Recarregue a página.");
-        return;
-      }
-    
-      console.log("📤 Enviando mensagem via socket:", payload);
-      socketRef.current.emit("mensagemTexto", payload, (resposta) => {
-        if (resposta?.status === "ok") {
-          setMensagem("");
-          fetchMensagens();
-    
-          // dispara automação no backend
-          try {
-            console.log("🚀 Disparando automação evento-mensagem:", {
-              lead_id: leadId,
-              tipo: "texto",
-              direcao: "saida",
-              usuario_id: usuarioAtual?.id || null,
-              conteudo: mensagem,
-            });
-    
-            fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                lead_id: leadId,
-                tipo: "texto",
-                direcao: "saida",
-                usuario_id: usuarioAtual?.id || null,
-                conteudo: mensagem,
-              }),
-            });
-          } catch (err) {
-            console.error("❌ Erro ao acionar automação backend:", err);
-          }
-        } else {
-          const erro = resposta?.error || "Erro desconhecido no envio via socket.";
-          alert("Erro ao enviar mensagem: " + erro);
-        }
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
       });
+      const result = await res.json();
+      if (result.status === "ok") {
+        setMensagem(""); // limpa input
+        await fetchMensagens(); // atualiza histórico imediatamente
+      
+        // NOVO: dispara automação de status no backend CRM
+        try {
+  console.log("🚀 Disparando automação evento-mensagem:", {
+    lead_id: leadId,
+    tipo: "texto",
+    direcao: "saida",
+    usuario_id: usuarioAtual?.id || null,
+    conteudo: mensagem,
+  });
+
+  await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      lead_id: leadId,
+      tipo: "texto", // ou "audio"/"imagem" se for o caso
+      direcao: "saida",
+      usuario_id: usuarioAtual?.id || null,
+      conteudo: mensagem, // ou mensagemComPlaceholders se preferir
+    }),
+  });
+} catch (err) {
+  console.error("❌ Erro ao acionar automação backend:", err);
+}
+
+      }
+      
+            
+      else {
+        const erro = result.error || "Erro desconhecido.";
+        alert("Erro ao enviar mensagem: " + erro);
+      }
     } catch (err) {
       alert("Erro ao enviar mensagem: " + (err.message || "erro desconhecido"));
     }
-     };  
+  };  
   
 
   const handleToggleTemp = async () => {
