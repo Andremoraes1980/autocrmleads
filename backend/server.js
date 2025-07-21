@@ -118,6 +118,7 @@ io.on('connection', (socket) => {
      // Log detalhado (agora variáveis existem!)
      console.log("🟡 Emitindo enviarMensagem para o provider", { para, mensagem });
      socketProvider.emit('enviarMensagem', { para, mensagem });
+     console.log('📲 [PROVIDER DEBUG] Recebeu enviarMensagem:', para, mensagem);
   
       // (Opcional) aguarde confirmação/erro do provider para resposta ao painel
       socketProvider.once('mensagemEnviada', (ok) => {
