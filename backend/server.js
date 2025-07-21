@@ -383,18 +383,18 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
         7000
       );
-      providerSocket.once('mensagemEnviada', (ok) => {
+      socketProvider.once('mensagemEnviada', (ok) => {
         clearTimeout(timeout);
         console.log("✅ Provider confirmou envio:", ok);
         resolve(ok);
       });
-      providerSocket.once('erroEnvio', (err) => {
+     socketProvider.once('erroEnvio', (err) => {
         clearTimeout(timeout);
         console.error("❌ Provider retornou erro:", err);
         reject(new Error(err.error || 'Falha no envio pelo provider'));
       });
       console.log("📡 Emitindo via socket → enviarMensagem");
-      providerSocket.emit('enviarMensagem', { para, mensagem });
+      socketProvider.emit('enviarMensagem', { para, mensagem });
     });
 
     // 2. Só depois do envio, busca dados extras do lead:
