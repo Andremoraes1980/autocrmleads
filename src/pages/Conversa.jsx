@@ -719,7 +719,8 @@ const [audioParaEnviar, setAudioParaEnviar] = useState(null);
 const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
 const navigate = useNavigate();
-const socketRef = useRef(null);
+
+
 
 
 
@@ -1038,6 +1039,9 @@ useEffect(() => {
   };
 }, []);
 
+function useMensagens(leadId) {
+  const socketRef = useRef(null);
+
 useEffect(() => {
   const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
     transports: ["websocket", "polling"],
@@ -1049,15 +1053,7 @@ useEffect(() => {
 
   socketRef.current = socket;
 
-  socketRef.current.emit("entrarNaSala", { lead_id: leadId });
-
-  socket.on("disconnect", (reason) => {
-    console.warn("🔌 Socket desconectado:", reason);
-  });
-
-  socket.on("audioReenviado", ({ mensagemId }) => {
-    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
-  });
+  socket.emit("entrarNaSala", { lead_id: leadId });
 
   socket.on("mensagemRecebida", ({ lead_id, mensagem }) => {
     if (lead_id === leadId) {
@@ -1067,6 +1063,16 @@ useEffect(() => {
       console.log("📭 [Socket] Ignorada — outro lead:", lead_id);
     }
   });
+  
+
+  socket.on("audioReenviado", ({ mensagemId }) => {
+    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
+  });
+  
+
+  socket.on("disconnect", (reason) => {
+    console.warn("🔌 Socket desconectado:", reason);
+  });
 
   return () => {
     socket.off("audioReenviado");
@@ -1074,7 +1080,7 @@ useEffect(() => {
     socket.disconnect();
   };
 }, [leadId]);
-
+}
 
 
 

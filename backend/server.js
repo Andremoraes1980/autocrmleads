@@ -76,6 +76,28 @@ socketProvider.on('audioReenviado', (payload) => {
   io.emit('audioReenviado', payload);
 });
 
+// --- RECEBE do PROVIDER (fora do io.on('connection')) ---
+socketProvider.on('qrCode', (data) => {
+  console.log("📷 Payload do QR recebido do provider:", data);
+
+  const qrString = typeof data === 'string' ? data : data?.qr;
+
+  if (!qrString) {
+    console.error('❌ QR inválido recebido:', data);
+    return;
+  }
+
+  QRCode.toDataURL(qrString)
+    .then(url => {
+      ultimoQrCodeDataUrl = url;
+      console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
+      io.emit('qrCode', { qr: url }); // Envia para TODOS os frontends conectados
+    })
+    .catch(err => {
+      console.error('❌ Erro ao gerar DataURL do QR:', err);
+    });
+});
+
 
 
 io.on('connection', (socket) => {
@@ -96,30 +118,16 @@ io.on('connection', (socket) => {
   socket.on('gerarQRCode', () => {
     console.log('🔄 Pedido de gerarQRCode recebido do frontend, repassando para provider...');
     socketProvider.emit('gerarQRCode');
-  }); 
 
-    
-
-  socket.on('qrCode', (data) => {
-    console.log("📷 Payload do QR recebido do provider:", data);
-
-    const qrString = typeof data === 'string' ? data : data?.qr;
-
-    if (!qrString) {
-      console.error('❌ QR inválido recebido:', data);
-      return;
+    // --- (Opcional) Reenvia o último QR se já existir ---
+    if (ultimoQrCodeDataUrl) {
+      socket.emit('qrCode', { qr: ultimoQrCodeDataUrl });
+      console.log('♻️ Reenviei último QR pro frontend:', socket.id);
     }
+  }); 
+  
 
-    QRCode.toDataURL(qrString)
-      .then(url => {
-        console.log('✅ DataURL gerado do QR:', url.slice(0, 30) + '…');
-        io.emit('qrCode', { qr: url });
-      })
-      .catch(err => {
-        console.error('❌ Erro ao gerar DataURL do QR:', err);
-      });
-  });
-
+  
   socket.on('disconnect', () => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
@@ -367,17 +375,25 @@ app.post('/api/enviar-mensagem', async (req, res) => {
         () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
         7000
       );
-      socketProvider.once('mensagemEnviada', (ok) => {
-        clearTimeout(timeout);
-        console.log("✅ Provider confirmou envio:", ok);
-        resolve(ok);
-      });
-      socketProvider.once('erroEnvio', (err) => {
-        clearTimeout(timeout);
-        console.error("❌ Provider retornou erro:", err);
-        reject(new Error(err.error || 'Falha no envio pelo provider'));
-      });
-      console.log("📡 Emitindo via socket → enviarMensagem");
+       // 1. Defina listeners antes de emitir!
+  const okListener = (ok) => {
+    clearTimeout(timeout);
+    resolve(ok);
+    cleanup();
+  };
+  const errListener = (err) => {
+    clearTimeout(timeout);
+    reject(new Error(err.error || 'Falha no envio pelo provider'));
+    cleanup();
+  };
+  function cleanup() {
+    socketProvider.off('mensagemEnviada', okListener);
+    socketProvider.off('erroEnvio', errListener);
+  }
+  socketProvider.once('mensagemEnviada', okListener);
+  socketProvider.once('erroEnvio', errListener);
+  // 2. Agora emite
+  console.log("📡 Emitindo via socket → enviarMensagem");
       socketProvider.emit('enviarMensagem', { para, mensagem });
     });
 
@@ -553,7 +569,7 @@ app.post('/api/enviar-midia', async (req, res) => {
   }
 });
 
-app.post('/api/reenviar-arquivo', async (req, res) => {
+app.post('/api/reenviar-arquivo', async (req, res) => {mensagemRecebida
   const { mensagemId } = req.body;
   if (!mensagemId) {
     console.error('🔴 mensagemId obrigatório');
