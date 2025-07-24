@@ -1039,47 +1039,64 @@ useEffect(() => {
   };
 }, []);
 
-function useMensagens(leadId) {
+function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   const socketRef = useRef(null);
 
-useEffect(() => {
-  const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-    transports: ["websocket", "polling"],
-    secure: true,
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 2000,
-  });
-
-  socketRef.current = socket;
-
-  socket.emit("entrarNaSala", { lead_id: leadId });
-
-  socket.on("mensagemRecebida", ({ lead_id, mensagem }) => {
-    if (lead_id === leadId) {
-      console.log("📨 [Socket] Mensagem nova do lead atual:", mensagem);
-      setMensagens((prev) => [...prev, mensagem]);
-    } else {
-      console.log("📭 [Socket] Ignorada — outro lead:", lead_id);
+  // 1. Só conecta o socket UMA vez
+  useEffect(() => {
+    if (!socketRef.current) {
+      socketRef.current = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
+        transports: ["websocket", "polling"],
+        secure: true,
+        reconnection: true,
+        reconnectionAttempts: 5,
+        reconnectionDelay: 2000,
+      });
+      socketRef.current.on("disconnect", (reason) => {
+        console.warn("🔌 Socket desconectado:", reason);
+      });
     }
-  });
-  
+    // Cleanup global socket ONLY on component unmount
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+        socketRef.current = null;
+      }
+    };
+  }, []);
 
-  socket.on("audioReenviado", ({ mensagemId }) => {
-    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
-  });
-  
+  // 2. Toda vez que mudar o leadId, muda a sala e listeners
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !leadId) return;
 
-  socket.on("disconnect", (reason) => {
-    console.warn("🔌 Socket desconectado:", reason);
-  });
+    socket.emit("entrarNaSala", { lead_id: leadId });
 
-  return () => {
+    const handleMensagemRecebida = ({ lead_id, mensagem }) => {
+      if (lead_id === leadId) {
+        console.log("📨 [Socket] Mensagem nova do lead atual:", mensagem);
+        setMensagens((prev) => [...prev, mensagem]);
+      } else {
+        console.log("📭 [Socket] Ignorada — outro lead:", lead_id);
+      }
+    };
+
+    const handleAudioReenviado = ({ mensagemId }) => {
+      setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
+    };
+
+    socket.off("mensagemRecebida"); // Limpa listener antigo!
+    socket.on("mensagemRecebida", handleMensagemRecebida);
+
     socket.off("audioReenviado");
-    socket.off("mensagemRecebida");
-    socket.disconnect();
-  };
-}, [leadId]);
+    socket.on("audioReenviado", handleAudioReenviado);
+
+    // Cleanup só listeners (NÃO desconecta o socket!)
+    return () => {
+      socket.off("mensagemRecebida", handleMensagemRecebida);
+      socket.off("audioReenviado", handleAudioReenviado);
+    };
+  }, [leadId, setMensagens, setEnviadosIphone]);
 }
 
 
