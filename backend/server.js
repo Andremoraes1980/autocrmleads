@@ -60,16 +60,33 @@ socketProvider.onAny((event, ...args) => {
 
 // 2. Repassa mensagens recebidas do provider
 socketProvider.on('mensagemRecebida', (payload) => {
-  const { lead_id } = payload;
+  const { lead_id, telefone, mensagem } = payload;
   console.log('📥 Recebido mensagemRecebida do provider:', payload);
 
   if (lead_id) {
     io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
     console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
   } else {
-    console.warn('⚠️ Payload sem lead_id. Não foi possível emitir mensagem para sala específica.');
+    // Tenta buscar o lead_id pelo telefone
+    const telefoneBusca = telefone || mensagem?.from;
+    if (telefoneBusca) {
+      buscarLeadIdPorTelefone(telefoneBusca)
+        .then((leadIdBanco) => {
+          if (leadIdBanco) {
+            io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { ...payload, lead_id: leadIdBanco });
+            console.log(`📤 Emitido mensagem para sala lead-${leadIdBanco} (por telefone ${telefoneBusca})`);
+          } else {
+            console.warn('⚠️ Não foi possível identificar lead_id pelo telefone:', telefoneBusca);
+          }
+        })
+        .catch((err) => {
+          console.error('Erro ao buscar lead_id pelo telefone:', err);
+        });
+    } else {
+      console.warn('⚠️ Payload sem lead_id e sem telefone. Não foi possível emitir mensagem para sala específica.');
+    }
   }
-});
+}); // <-- Fecha aqui!
 
 socketProvider.on('audioReenviado', (payload) => {
   console.log('🔊 Recebido audioReenviado do provider:', payload);
@@ -132,6 +149,21 @@ io.on('connection', (socket) => {
     console.log(`❌ Cliente desconectado: ${socket.id}`);
   });
 });
+
+async function buscarLeadIdPorTelefone(telefone) {
+  // Formate o telefone igual ao banco!
+  const tel = telefone.replace(/\D/g, ""); // Só dígitos
+  const { data, error } = await supabase
+    .from('leads') // Nome da tabela
+    .select('id')
+    .ilike('telefone', `%${tel}%`) // Ou ajuste conforme seu banco
+    .limit(1)
+    .maybeSingle();
+
+  if (error || !data) return null;
+  return data.id;
+}
+
 
 
 // === ADICIONADO: Supabase Client para salvar leads Webmotors ===
