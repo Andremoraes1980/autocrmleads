@@ -1049,8 +1049,8 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
         transports: ["websocket", "polling"],
         secure: true,
         reconnection: true,
-        reconnectionAttempts: 5,
-        reconnectionDelay: 2000,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 5000,
       });
       socketRef.current.on("disconnect", (reason) => {
         console.warn("🔌 Socket desconectado:", reason);

@@ -36,6 +36,8 @@ const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
   transports: ["websocket"],
   secure: true,
   reconnection: true,
+  reconnectionAttempts: 10,
+  reconnectionDelay: 5000,
 });
 
 console.log('🔌 Tentando conectar ao provider...');
