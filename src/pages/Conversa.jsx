@@ -1065,23 +1065,32 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     };
   }, []);
 
+  
   // 2. Toda vez que mudar o leadId, muda a sala e listeners
-  useEffect(() => {
-    const socket = socketRef.current;
-    if (!socket || !leadId) return;
+useEffect(() => {
+  const socket = socketRef.current;
+  if (!socket || !leadId) return;
 
-    socket.emit("entrarNaSala", { lead_id: leadId });
-    console.log("📶 Entrando na sala do lead:", leadId);
+  console.log("🚪 Emitindo entrarNaSala para:", leadId);
+  socket.emit("entrarNaSala", { lead_id: leadId });
+  console.log("📶 Entrando na sala do lead:", leadId);
 
-    const handleMensagemRecebida = ({ lead_id, mensagem }) => {
-      if (lead_id === leadId) {
-        console.log("📨 [Socket] Mensagem nova do lead atual:", mensagem);
-        setMensagens((prev) => [...prev, mensagem]);
-      } else {
-        console.log("📭 [Socket] Ignorada — outro lead:", lead_id);
-      }
-    };
+  const handleMensagemRecebida = ({ lead_id: recebidaDoSocket, mensagem }) => {
+    if (recebidaDoSocket === leadId) {
+      console.log("📨 Mensagem nova do lead atual:", mensagem);
+      setMensagens((prev) => [...prev, mensagem]);
+    } else {
+      console.log("📭 Ignorada: lead diferente", recebidaDoSocket);
+    }
+  };
 
+  socket.off("mensagemRecebida");
+  socket.on("mensagemRecebida", handleMensagemRecebida);
+
+  return () => {
+    socket.off("mensagemRecebida", handleMensagemRecebida);
+  };
+}, [leadId]);
     const handleAudioReenviado = ({ mensagemId }) => {
       setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
     };
