@@ -718,6 +718,7 @@ const [canalSelecionado, setCanalSelecionado] = useState("WhatsApp Cockpit");
 const [audioParaEnviar, setAudioParaEnviar] = useState(null);
 const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});
+useMensagens(leadId, setMensagens, setEnviadosIphone);  
 const navigate = useNavigate();
 
 
@@ -1340,7 +1341,35 @@ useEffect(() => {
     }
     fetchTimeline();
   }, [leadId]);
-  
+
+  // Atualiza timeline quando chegar nova mensagem
+useEffect(() => {
+  if (!leadId || mensagens.length === 0) return;
+  (async () => {
+    const { data: novaTimeline, error } = await supabase
+      .from("timeline")
+      .select("id, tipo, conteudo, usuario_id, criado_em, data, hora, descricao, nota, duracao, etapa_nova, etapa_anterior")
+      .eq("lead_id", leadId)
+      .order("criado_em", { ascending: true });
+    if (!error) {
+      setTimeline(
+        novaTimeline.map(ev => ({
+          ...ev,
+          data_hora: ev.criado_em,
+          autor_id: ev.usuario_id,
+          detalhes: ev.conteudo,
+          data: ev.data,
+          hora: ev.hora,
+          descricao: ev.descricao,
+          duracao: ev.duracao,
+          nota: ev.nota,
+          etapa_nova: ev.etapa_nova,
+          etapa_anterior: ev.etapa_anterior,
+        }))
+      );
+    }
+  })();
+}, [mensagens]);
   
   
 
