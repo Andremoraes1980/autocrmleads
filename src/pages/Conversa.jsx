@@ -1071,6 +1071,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     if (!socket || !leadId) return;
 
     socket.emit("entrarNaSala", { lead_id: leadId });
+    console.log("📶 Entrando na sala do lead:", leadId);
 
     const handleMensagemRecebida = ({ lead_id, mensagem }) => {
       if (lead_id === leadId) {
