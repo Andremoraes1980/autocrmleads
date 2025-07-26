@@ -1053,6 +1053,13 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
         reconnectionAttempts: 10,
         reconnectionDelay: 5000,
       });
+
+      // ←––––– AQUI: confirma quando a conexão for estabelecida
+      socketRef.current.on("connect", () => {
+         console.log("✅ Socket conectado:", socketRef.current.id);
+      });
+
+
       socketRef.current.on("disconnect", (reason) => {
         console.warn("🔌 Socket desconectado:", reason);
       });
