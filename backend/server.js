@@ -63,20 +63,22 @@ socketProvider.onAny((event, ...args) => {
 // 2. Repassa mensagens recebidas do provider
 socketProvider.on('mensagemRecebida', (payload) => {
   const { lead_id, telefone, mensagem } = payload;
-  console.log('📥 Recebido mensagemRecebida do provider:', payload);
+  console.log('📥 [REPASSE] chegou mensagemRecebida do provider:', payload);
+  console.log('🚦 [REPASSE] pronto para emitir na sala:', `lead-${lead_id}`);
 
   if (lead_id) {
     io.to(`lead-${lead_id}`).emit('mensagemRecebida', payload);
-    console.log(`📤 Emitido mensagem para sala lead-${lead_id}`);
+    console.log('✅ [REPASSE] emitido mensagemRecebida para sala lead-' + lead_id);
   } else {
     // Tenta buscar o lead_id pelo telefone
     const telefoneBusca = telefone || mensagem?.from;
     if (telefoneBusca) {
+      console.log('⚙️ [REPASSE] fallback por telefone:', telefoneBusca);
       buscarLeadIdPorTelefone(telefoneBusca)
         .then((leadIdBanco) => {
           if (leadIdBanco) {
             io.to(`lead-${leadIdBanco}`).emit('mensagemRecebida', { ...payload, lead_id: leadIdBanco });
-            console.log(`📤 Emitido mensagem para sala lead-${leadIdBanco} (por telefone ${telefoneBusca})`);
+            console.log(`✅ [REPASSE] emitido mensagemRecebida para sala lead-${leadIdBanco} (por telefone ${telefoneBusca})`);
           } else {
             console.warn('⚠️ Não foi possível identificar lead_id pelo telefone:', telefoneBusca);
           }
