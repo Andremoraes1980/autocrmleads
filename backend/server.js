@@ -125,10 +125,17 @@ io.on('connection', (socket) => {
   socket.on('entrarNaSala', ({ lead_id }) => {
     if (lead_id) {
       const room = `lead-${lead_id}`;
-      socket.join(room);
-      console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
-    } else {
-      console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
+
+      // aguarda 2s e emite um “ping” de teste
+    setTimeout(() => {
+      const teste = { lead_id, mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' } };
+      io.to(room).emit('mensagemRecebida', teste);
+      console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
+    }, 2000);
+     // socket.join(room);
+     // console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
+   // } else {
+    //  console.warn(`⚠️ Socket ${socket.id} tentou entrar em sala sem lead_id`);
     }
   });
 

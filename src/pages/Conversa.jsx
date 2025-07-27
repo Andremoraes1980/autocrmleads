@@ -1047,12 +1047,17 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   useEffect(() => {
     if (!socketRef.current) {
       socketRef.current = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
-        transports: ["websocket", "polling"],
+        transports: ["websocket"],
         secure: true,
         reconnection: true,
         reconnectionAttempts: 10,
         reconnectionDelay: 5000,
       });
+
+      socketRef.current.onAny((event, ...args) => {
+        console.log("➡️ Front recebeu evento:", event, args);
+      });
+      
 
       // ←––––– AQUI: confirma quando a conexão for estabelecida
       socketRef.current.on("connect", () => {
@@ -1082,12 +1087,14 @@ useEffect(() => {
   socket.emit("entrarNaSala", { lead_id: leadId });
   console.log("📶 Entrando na sala do lead:", leadId);
 
-  const handleMensagemRecebida = ({ lead_id: recebidaDoSocket, mensagem }) => {
+  // vamos examinar TODO o payload que chega
+  const handleMensagemRecebida = (payload) => {
+    console.log("📨 [Front] mensagemRecebida payload:", payload);
+    const { lead_id: recebidaDoSocket, mensagem } = payload;
     if (recebidaDoSocket === leadId) {
-      console.log("📨 Mensagem nova do lead atual:", mensagem);
       setMensagens((prev) => [...prev, mensagem]);
     } else {
-      console.log("📭 Ignorada: lead diferente", recebidaDoSocket);
+      console.log("📭 Ignorada — veio para outro lead:", recebidaDoSocket);
     }
   };
 
