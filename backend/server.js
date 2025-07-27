@@ -135,14 +135,14 @@ io.on('connection', (socket) => {
     console.log(`👥 Socket ${socket.id} entrou na sala ${room}`);
 
     // ======= TESTE REAL‑TIME =========
-    setTimeout(() => {
-      const pingMsg = {
-        lead_id,
-        mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' }
-      };
-      io.to(room).emit('mensagemRecebida', pingMsg);
-      console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
-    }, 2000);
+   // setTimeout(() => {
+     // const pingMsg = {
+       // lead_id,
+    //    mensagem: { id: 'ping', conteudo: '🚀 Teste real‑time!' }
+    //  };
+     // io.to(room).emit('mensagemRecebida', pingMsg);
+     // console.log('✅ [TESTE] servidor emitiu mensagemRecebida de teste para', room);
+   // }, 2000);
     // ==================================
   });
 
