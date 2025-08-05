@@ -1,7 +1,7 @@
 
 // Arquivo: backend/listeners/provider/receberMensagem.js
 
-const buscarLeadIdPorTelefone = require('../../../services/buscarLeadIdPorTelefone');
+const buscarLeadIdPorTelefone = require('../../services/buscarLeadIdPorTelefone');
 
 module.exports = function receberMensagem(socketProvider, io) {
   socketProvider.on('mensagemRecebida', (payload) => {
