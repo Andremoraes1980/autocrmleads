@@ -1572,6 +1572,7 @@ useEffect(() => {
       telefone_cliente: lead?.telefone || null,
       lida: false,
     };
+    console.log("📦 Payload enviado:", payload); // <-- adicione aqui
   
     try {
       const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/enviar-mensagem`, { 

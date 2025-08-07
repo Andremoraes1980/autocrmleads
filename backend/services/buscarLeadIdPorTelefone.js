@@ -1,6 +1,6 @@
 // Arquivo: backend/services/buscarLeadIdPorTelefone.js
 
-const supabase = require('../config/supabaseClient');
+const supabase = require('../config/supabase');
 
 async function buscarLeadIdPorTelefone(telefone) {
   // Formata o telefone para conter apenas dígitos

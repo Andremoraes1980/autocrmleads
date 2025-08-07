@@ -23,11 +23,12 @@ const server = http.createServer(app);
 const QRCode = require('qrcode');
 const { Server } = require('socket.io');
 const receberMensagem = require('./listeners/provider/receberMensagem');
-const buscarLeadIdPorTelefone = require('../../services/buscarLeadIdPorTelefone');
+const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
 const audioReenviado = require('./listeners/provider/audioReenviado');
 const socketProvider = require('./connections/socketProvider');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
+const receberQrCode = require('./listeners/provider/receberQrCode');
 
 
 
@@ -319,6 +320,9 @@ app.post('/api/enviar-mensagem', async (req, res) => {
   socketProvider.once('erroEnvio', errListener);
   // 2. Agora emite
   console.log("📡 Emitindo via socket → enviarMensagem");
+  console.log("🚀 Emitindo para o provider:", payload);
+console.log("📡 Socket conectado?", socketProvider.connected);
+
       socketProvider.emit('enviarMensagem', { para, mensagem });
     });
 
