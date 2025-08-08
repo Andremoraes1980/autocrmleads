@@ -320,7 +320,9 @@ app.post('/api/enviar-mensagem', async (req, res) => {
   socketProvider.once('erroEnvio', errListener);
   // 2. Agora emite
   console.log("📡 Emitindo via socket → enviarMensagem");
-  console.log("🚀 Emitindo para o provider:", payload);
+  const payload = { para, mensagem };
+console.log("🚀 Emitindo para o provider:", payload);
+
 console.log("📡 Socket conectado?", socketProvider.connected);
 
       socketProvider.emit('enviarMensagem', { para, mensagem });

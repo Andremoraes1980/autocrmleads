@@ -4,7 +4,10 @@
 const buscarLeadIdPorTelefone = require('../../services/buscarLeadIdPorTelefone');//aqui
 
 module.exports = function receberMensagem(socketProvider, io) {
+  console.log('🐛 [BACKEND] receberMensagem() chamado — listener vai ser registrado');
   socketProvider.on('mensagemRecebida', (payload) => {
+    console.log('🐛 [BACKEND] 🚨 callback mensagemRecebida disparado', payload);
+     console.log('📥 Recebido mensagemRecebida do provider:', payload);
     const { lead_id, telefone, mensagem } = payload;
 
     console.log('📥 [REPASSE] chegou mensagemRecebida do provider:', payload);
