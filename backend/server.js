@@ -14,41 +14,48 @@ require('./jobs/agendador');
 const axios = require('axios');
 const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
-
 const express = require('express');
 const app = express();
 const http = require('http');
-const socketIo = require('socket.io');
 const server = http.createServer(app);
 const QRCode = require('qrcode');
-const { Server } = require('socket.io');
-const receberMensagem = require('./listeners/provider/receberMensagem');
+const createSocketServer = require('./connections/socketServer');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
 const audioReenviado = require('./listeners/provider/audioReenviado');
-const socketProvider = require('./connections/socketProvider');
+/** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
+const socketProvider = require('./connections/socketProviderV2');
+const receberMensagem = require('./listeners/provider/receberMensagem');
 const socketFrontend = require('./connections/socketFrontend');
 const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
+const io = createSocketServer(server);
+const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 
 
 
-const io = new Server(server, {
-  cors: {
-    origin: [
-      "https://autocrmleads.com.br",
-      "https://autocrmleads.vercel.app",
-      "http://localhost:5001",
-      "https://autocrm-backend.onrender.com",  // pode deixar para testes
-      "https://socket.autocrmleads.com.br",
-      "http://localhost:5173"
-    ],
-    methods: ["GET", "POST"],
-    credentials: true
-  }
-});
+
+
 
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
 socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
+
+
+
+io.on('connection', (socket) => {
+  console.log('🟢 [IO] Cliente conectado:', socket.id);
+
+  entrarNaSala(socket, io);
+
+
+  // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
+  receberMensagem(socket, io);
+
+  socket.on('disconnect', (reason) => {
+    console.log(`🔌 [IO] ${socket.id} desconectou — motivo:`, reason);
+  });
+
+});
+
 
 
 // Listeners já modularizados corretamente:
@@ -56,7 +63,7 @@ socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
 // 1. Repassa mensagens recebidas do provider
 // Arquivo: backend/listeners/provider/receberMensagem.js
 
-receberMensagem(socketProvider, io);
+
 
 // Arquivo: backend/listeners/provider/audioReenviado.js
 
@@ -500,7 +507,7 @@ app.post('/api/enviar-midia', async (req, res) => {
   }
 });
 
-app.post('/api/reenviar-arquivo', async (req, res) => {mensagemRecebida
+app.post('/api/reenviar-arquivo', async (req, res) => {
   const { mensagemId } = req.body;
   if (!mensagemId) {
     console.error('🔴 mensagemId obrigatório');

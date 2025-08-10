@@ -11,6 +11,7 @@ const socketProvider = ioClient(process.env.PROVIDER_SOCKET_URL, {
   reconnectionDelay: 5000,
 });
 
+console.log('🐞 [DEBUG] PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 console.log('🔌 Tentando conectar ao provider...');
 
 // ✅ Conexão bem-sucedida
@@ -21,7 +22,7 @@ socketProvider.on('connect', () => {
 });
 
 // 🔴 Desconectado
-socketProvider.on('disconnect', () => {
+socketProvider.on('disconnect', (reason) => {
   console.log('🔴 [DEBUG] socketProvider desconectado — motivo:', reason);
    console.log('🔴 Desconectado do provider do WhatsApp (AWS)');
 });
@@ -32,6 +33,7 @@ socketProvider.on('connect_error', (err) => {
 
 // ✅ Log genérico para qualquer evento emitido pelo provider
 socketProvider.onAny((event, ...args) => {
+  console.log('🐞 [DEBUG] socketProvider.onAny — evento:', event, args);
   console.log('📡 Evento recebido de provider:', event, args);
 });
 
