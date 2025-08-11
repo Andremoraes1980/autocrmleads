@@ -22,6 +22,14 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
   const nomeCliente = msg.remetente_nome || "";
   const isCliente   = !remetente || !["vendedor","admin","gerente"].includes(remetente?.tipo);
 
+  // Detecta áudio "single" (sem msg.arquivos) por tipo OU pela extensão do nome/url
+const isAudioSingle =
+(msg?.tipo === "audio") ||
+/(\.ogg|\.mp3|\.m4a|\.wav|\.opus)/i.test(
+  (msg?.nome_arquivo || msg?.arquivo_url || "")
+);
+
+
   return (
     
     <div className={styles["conversa-message"]}>
@@ -120,6 +128,26 @@ const Bubble = ({ msg, mapaUsuarios, enviadosIphone, setEnviadosIphone }) => {
       }}
     >
       ⬇️ Baixar vídeo
+    </a>
+  </div>
+)}
+
+{/* ÁUDIO (mensagem única / single) */}
+{isAudioSingle && msg.arquivo_url && (
+  <div style={{ textAlign: "center", padding: 4 }}>
+    <audio controls src={msg.arquivo_url} style={{ width: 400 }} />
+    <a
+      href={msg.arquivo_url}
+      download={msg.nome_arquivo || "audio.ogg"}
+      style={{
+        display: "inline-block",
+        marginTop: 2,
+        fontSize: 12,
+        textDecoration: "none",
+        color: "#1877f2"
+      }}
+    >
+      ⬇️ Baixar áudio
     </a>
   </div>
 )}
