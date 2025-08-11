@@ -12,6 +12,7 @@ const supabase = createClient(
 console.log('🔍 PROVIDER_SOCKET_URL =', process.env.PROVIDER_SOCKET_URL);
 require('./jobs/agendador');
 const axios = require('axios');
+const { converterWebmParaOgg } = require('./services/converterWebmParaOgg');
 const cors = require('cors');
 const { io: ioClient } = require('socket.io-client');
 const express = require('express');
