@@ -222,7 +222,7 @@ const isAudioSingle =
       transform: "translate(7%, 2px)", // centraliza e afasta 4px pra baixo
       fontSize: 8,
       fontWeight: 600,
-      color: enviadosIphone[msg.id] ? "#27ae60" : "#2196f3",
+      color: (enviadosIphone?.[msg.id] || msg.audio_reenviado || msg.audio_reenviado_url) ? "#27ae60" : "#2196f3",
       whiteSpace: "nowrap"
     }}
   >
@@ -1284,6 +1284,7 @@ useEffect(() => {
     async function carregarMensagens() {
       const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/mensagens/${lead.id}`);
       const msgs = await resposta.json();
+      console.log('[DEBUG] msgs recebidas:', msgs.map(m => ({ id: m.id, audio_reenviado: m.audio_reenviado, url: m.audio_reenviado_url })));
       // monta um objeto { [msg.id]: true } para cada msg com audio_reenviado === true
       const iniciais = {};
       msgs.forEach(m => {

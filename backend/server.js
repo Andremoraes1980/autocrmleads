@@ -670,19 +670,55 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
   }
 });
 
-app.get('/api/mensagens/:lead_id', async (req, res) => {
-  const { lead_id } = req.params;
-  const { data, error } = await supabase
-    .from('mensagens')
-    .select('*')
-    .eq('lead_id', lead_id)
-    .order('criado_em', { ascending: true });
+// Lista mensagens de um lead (inclui campos de reenvio)
+app.get('/api/mensagens/:leadId', async (req, res) => {
+  try {
+    const { leadId } = req.params;
 
-  if (error) {
-    console.error("❌ Erro ao buscar mensagens:", error.message);
-    return res.status(500).json({ error: error.message });
+    const { data, error } = await supabase
+      .from('mensagens')
+      .select(`
+        id,
+        lead_id,
+        mensagem,
+        canal,
+        criado_em,
+        remetente_id,
+        remetente,
+        remetente_nome,
+        tipo,
+        arquivos,
+        direcao,
+        telefone_cliente,
+        lida,
+        audio_reenviado,
+        audio_reenviado_em,
+        audio_reenviado_url
+      `)
+      .eq('lead_id', leadId)
+      .order('criado_em', { ascending: true });
+
+    if (error) {
+      console.error('❌ [GET /api/mensagens] erro:', error.message);
+      return res.status(500).json({ error: error.message });
+    }
+
+    // Log de verificação (remova depois)
+    if (Array.isArray(data) && data.length) {
+      const ex = data[data.length - 1];
+      console.log('🧪 [GET /api/mensagens] exemplo:', {
+        id: ex.id,
+        audio_reenviado: ex.audio_reenviado,
+        audio_reenviado_em: ex.audio_reenviado_em,
+        tem_arquivos: !!ex.arquivos,
+      });
+    }
+
+    return res.json(data || []);
+  } catch (e) {
+    console.error('❌ [GET /api/mensagens] exceção:', e.message);
+    return res.status(500).json({ error: e.message });
   }
-  res.json(data);
 });
 
 
