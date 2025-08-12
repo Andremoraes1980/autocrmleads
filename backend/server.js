@@ -31,6 +31,8 @@ const ultimoQrCodeDataUrlRef = { value: null }; // referência mutável
 const receberQrCode = require('./listeners/provider/receberQrCode');
 const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
+const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
+
 
 
 
@@ -631,6 +633,15 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
         audio_reenviado_url: urlMp3Reenviado
       })
       .eq('id', mensagem.id);
+
+      // NOVO: avisar em tempo real os clients da conversa
+try {
+  io.to(`lead-${mensagem.lead_id}`).emit('audioReenviado', { mensagemId: mensagem.id });
+  console.log('📣 Emitido "audioReenviado" para sala', `lead-${mensagem.lead_id}`);
+} catch (e) {
+  console.warn('⚠️ Falha ao emitir "audioReenviado":', e.message);
+}
+
 
     console.log('🟢 Reenvio concluído com sucesso!');
     return res.json({ status: 'ok', mensagemId: resultado.mensagemId });

@@ -201,7 +201,8 @@ const isAudioSingle =
   }}
 >
   <BotaoReenvioAudioLottie
-    enviado={!!enviadosIphone?.[msg.id]}
+    enviado={Boolean(enviadosIphone?.[msg.id] || msg.audio_reenviado)}
+
     onReenviar={async () => {
       const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/reenviar-arquivo`, {
         method: "POST",
@@ -1125,15 +1126,33 @@ useEffect(() => {
       console.log("📭 Ignorada — veio para outro lead:", recebidaDoSocket);
     }
   };
-
+  
+  // ✅ NOVO: marcar áudio reenviado em tempo real
+  const handleAudioReenviado = ({ mensagemId }) => {
+    if (!mensagemId) return;
+    // 1) marca em memória (tempo real)
+    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
+    // 2) reflete no array de mensagens (persiste no estado atual da tela)
+    setMensagens((prev) =>
+      prev.map((m) =>
+        m.id === mensagemId ? { ...m, audio_reenviado: true, audio_reenviado_em: new Date().toISOString() } : m
+      )
+    );
+  };
+  
   socket.off("mensagemRecebida");
   socket.on("mensagemRecebida", handleMensagemRecebida);
-
+  
+  socket.off("audioReenviado");
+  socket.on("audioReenviado", handleAudioReenviado);
+  
   return () => {
     socket.off("mensagemRecebida", handleMensagemRecebida);
+    socket.off("audioReenviado", handleAudioReenviado);
   };
-}, [leadId]);
-}
+  }, [leadId]);
+  }
+  
 
 
 
