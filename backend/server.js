@@ -454,24 +454,28 @@ app.post('/api/enviar-midia', async (req, res) => {
 
   try {
     // Envia VIA SOCKET para o provider (igual já faz com enviar-mensagem)
-    await new Promise((resolve, reject) => {
+    const ack = await new Promise((resolve, reject) => {
       const timeout = setTimeout(
         () => reject(new Error('⏱️ Provider não respondeu em 15 segundos')),
         15000
       );
-      socketProvider.once('midiaEnviada', (ok) => {
-        clearTimeout(timeout);
-        console.log("✅ Provider confirmou envio de mídia:", ok);
-        resolve(ok);
-      });
-      socketProvider.once('erroEnvioMidia', (err) => {
-        clearTimeout(timeout);
-        console.error("❌ Provider retornou erro na mídia:", err);
-        reject(new Error(err.error || 'Falha no envio de mídia pelo provider'));
-      });
-      console.log("📡 Emitindo via socket → enviarMidia");
-      socketProvider.emit('enviarMidia', { telefone, arquivos, lead_id, remetente_id, remetente });
+    
+      console.log("📡 Emitindo via socket → enviarMidia (callback)");
+      socketProvider.emit(
+        'enviarMidia',
+        { telefone, arquivos, lead_id, remetente_id, remetente },
+        (resp) => {
+          clearTimeout(timeout);
+          resolve(resp);
+        }
+      );
     });
+    
+    if (!ack || ack.ok !== true) {
+      throw new Error(ack?.error || 'Falha no envio de mídia pelo provider');
+    }
+    console.log("✅ Provider confirmou envio de mídia (callback):", ack);
+    
 
     // Monta array de arquivos e salva uma ÚNICA linha no Supabase, independente da quantidade de arquivos!
     const arquivosArray = arquivos.map(arquivo => ({
