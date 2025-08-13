@@ -22,7 +22,6 @@ const server = http.createServer(app);
 const QRCode = require('qrcode');
 const createSocketServer = require('./connections/socketServer');
 const buscarLeadIdPorTelefone = require('./services/buscarLeadIdPorTelefone'); //aqui
-const audioReenviado = require('./listeners/provider/audioReenviado');
 /** ====== ATIVAR V2 E DESATIVAR ANTIGOS ====== **/
 const socketProvider = require('./connections/socketProviderV2');
 const receberMensagem = require('./listeners/provider/receberMensagem');
@@ -63,14 +62,8 @@ io.on('connection', (socket) => {
 
 // Listeners já modularizados corretamente:
 
-// 1. Repassa mensagens recebidas do provider
-// Arquivo: backend/listeners/provider/receberMensagem.js
 
 
-
-// Arquivo: backend/listeners/provider/audioReenviado.js
-
-audioReenviado(socketProvider, io);
 
 //  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
 // Arquivo: backend/listeners/provider/receberQrCode.js
@@ -281,6 +274,62 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
   }
 });
 
+const { v4: uuidv4 } = require('uuid');
+
+// 🔒 índice em memória para casar jobId → id da mensagem no banco
+const jobIndex = global.__jobIndex || (global.__jobIndex = new Map());
+
+// 🔔 listener único para resultados do provider (padrão moderno)
+if (!global.__statusEnvioRegistered) {
+  socketProvider.off?.('statusEnvio');
+  socketProvider.on('statusEnvio', async (evt) => {
+    try {
+      const { jobId, ok, mensagemId, error, tipo, para } = evt || {};
+      if (!jobId) return;
+
+      const entry = jobIndex.get(jobId);
+      if (!entry) return;
+
+      const { mensagemRowId, lead_id } = entry;
+
+      // atualiza a linha no Supabase (mínimo: id externo)
+      if (ok) {
+        await supabase
+          .from('mensagens')
+          .update({
+            mensagem_id_externo: mensagemId,
+            // (adicione outros campos se existir no schema, ex.: status_envio: 'enviada', enviada_em: new Date().toISOString())
+          })
+          .eq('id', mensagemRowId);
+      } else {
+        await supabase
+          .from('mensagens')
+          .update({
+            // status_envio: 'erro', erro_envio: error
+          })
+          .eq('id', mensagemRowId);
+      }
+
+      // remove do índice e avisa a sala do lead
+      jobIndex.delete(jobId);
+      try {
+        io.to(`lead-${lead_id}`).emit('statusEnvio', {
+          jobId,
+          ok,
+          mensagemId,
+          mensagemIdLocal: mensagemRowId,
+          error,
+          tipo: tipo || 'texto',
+          para
+        });
+      } catch (_) {}
+    } catch (e) {
+      console.error('❌ [statusEnvio] falha ao processar:', e.message);
+    }
+  });
+  global.__statusEnvioRegistered = true;
+}
+
 app.post('/api/enviar-mensagem', async (req, res) => {
   const {
     para,
@@ -294,51 +343,12 @@ app.post('/api/enviar-mensagem', async (req, res) => {
     lida,
   } = req.body;
 
-  // Logs para debug
-  console.log("Canal recebido do frontend:", canal);
-  console.log("Remetente recebido do frontend:", remetente);
-  console.log("Payload recebido:", req.body);
-
-  // Validação
   if (!para || !mensagem || !lead_id || !remetente_id || !remetente) {
     return res.status(400).json({ error: 'Campos obrigatórios faltando.' });
   }
 
   try {
-    // 1. Envia a mensagem ao provider via socket
-    await new Promise((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('⏱️ Provider não respondeu em 7 segundos')),
-        7000
-      );
-       // 1. Defina listeners antes de emitir!
-  const okListener = (ok) => {
-    clearTimeout(timeout);
-    resolve(ok);
-    cleanup();
-  };
-  const errListener = (err) => {
-    clearTimeout(timeout);
-    reject(new Error(err.error || 'Falha no envio pelo provider'));
-    cleanup();
-  };
-  function cleanup() {
-    socketProvider.off('mensagemEnviada', okListener);
-    socketProvider.off('erroEnvio', errListener);
-  }
-  socketProvider.once('mensagemEnviada', okListener);
-  socketProvider.once('erroEnvio', errListener);
-  // 2. Agora emite
-  console.log("📡 Emitindo via socket → enviarMensagem");
-  const payload = { para, mensagem };
-console.log("🚀 Emitindo para o provider:", payload);
-
-console.log("📡 Socket conectado?", socketProvider.connected);
-
-      socketProvider.emit('enviarMensagem', { para, mensagem });
-    });
-
-    // 2. Só depois do envio, busca dados extras do lead:
+    // 1) Buscar dados extras do lead (revenda/vendedor/nome)
     const { data: leadData, error: leadError } = await supabase
       .from('leads')
       .select('revenda_id,vendedor_id,telefone,nome')
@@ -346,11 +356,12 @@ console.log("📡 Socket conectado?", socketProvider.connected);
       .single();
 
     if (leadError || !leadData) {
-      console.error("❌ Não foi possível buscar o lead:", leadError ? leadError.message : 'Lead não encontrado');
       return res.status(400).json({ error: "Lead não encontrado para extrair revenda/vendedor_id" });
     }
+
     const revenda_id  = leadData.revenda_id;
-    const vendedor_id = leadData.vendedor_id;  
+    const vendedor_id = leadData.vendedor_id;
+
     let remetente_nome = null;
     if (remetente_id) {
       const { data: userData } = await supabase
@@ -361,40 +372,69 @@ console.log("📡 Socket conectado?", socketProvider.connected);
       remetente_nome = userData?.nome || null;
     } else {
       remetente_nome = leadData?.nome || leadData?.telefone || 'Cliente';
-    }  
+    }
 
-    const direcao = remetente_id ? 'saida' : 'entrada';
+    const direcao = 'saida'; // envio do painel
 
-    // 3. Salva mensagem no banco
-    const { error: insertError } = await supabase.from('mensagens').insert([{
-      lead_id,
-      revenda_id,
-      vendedor_id,
-      mensagem,
-      criado_em: new Date().toISOString(),
-      remetente_id,
-      remetente,
-      remetente_nome,
-      tipo: tipo || 'texto',
-      canal: canal || 'WhatsApp Cockpit',
-      direcao,
-      telefone_cliente: telefone_cliente || null,
-      lida: typeof lida === "boolean" ? lida : false,  
-    }]);
+    // 2) Criar a linha no Supabase (estado inicial "pendente" — se houver essa coluna)
+    const { data: inserted, error: insertError } = await supabase
+      .from('mensagens')
+      .insert([{
+        lead_id,
+        revenda_id,
+        vendedor_id,
+        mensagem,
+        criado_em: new Date().toISOString(),
+        remetente_id,
+        remetente,
+        remetente_nome,
+        tipo: tipo || 'texto',
+        canal: canal || 'WhatsApp Cockpit',
+        direcao,
+        telefone_cliente: telefone_cliente || null,
+        lida: typeof lida === "boolean" ? lida : false,
+        // status_envio: 'pendente', // se existir no schema
+      }])
+      .select('id')
+      .single();
 
     if (insertError) {
-      console.error("❌ Erro ao salvar no Supabase:", insertError.message);
       return res.status(500).json({ error: 'Erro ao salvar no Supabase: ' + insertError.message });
     }
 
-    console.log("💾 Mensagem salva com sucesso no Supabase");
-    res.json({ status: 'ok' });
+    const mensagemRowId = inserted.id;
+    const jobId = uuidv4();
+    jobIndex.set(jobId, { mensagemRowId, lead_id });
+
+    // 3) Emitir para o provider com ACK (callback) — resposta rápida
+    console.log('🔌 [BACKEND] socketProvider connected?', socketProvider?.connected, 'id:', socketProvider?.id);
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Provider não respondeu em 7s')), 7000);
+
+      socketProvider.emit(
+        'enviarMensagem',
+        { para, mensagem, jobId },
+        (ack) => {
+          clearTimeout(timeout);
+          if (ack && ack.accepted) {
+            resolve(true);
+          } else {
+            reject(new Error(ack?.error || 'Provider recusou envio'));
+          }
+        }
+      );
+    });
+
+    // 4) Responder imediatamente ao front; o resultado final virá por websockets
+    return res.json({ status: 'ok', jobId, mensagem_id: mensagemRowId });
 
   } catch (err) {
     console.error('❌ Erro geral no envio:', err.message);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
+
 
 app.post('/api/enviar-midia', async (req, res) => {
   console.log("🔵 Recebido POST /api/enviar-midia:", req.body);
@@ -604,64 +644,80 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
       mensagemId: mensagem.id
     });
 
-    // Aguarda confirmação (timeout 15s)
-    const resultado = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        console.error('🔴 Provider não respondeu em 15s');
-        reject(new Error('Provider não respondeu em 15s'));
-      }, 15000);
+    // Pede reenvio ao provider e espera ACK por callback OU por evento fallback
+const resultado = await new Promise((resolve, reject) => {
+  const timeout = setTimeout(() => {
+    console.error('🔴 Provider não respondeu em 15s');
+    reject(new Error('Provider não respondeu em 15s'));
+  }, 15000);
 
-      socketProvider.once('audioReenviado', (data) => {
-        clearTimeout(timeout);
-        console.log('🟢 Provider confirmou envio:', data);
-        resolve(data);
-      });
-      socketProvider.once('erroReenvioAudio', (err) => {
-        clearTimeout(timeout);
-        console.error('🔴 Provider retornou erro:', err);
-        reject(new Error(err || "Falha ao reenviar áudio"));
-      });
-    });
+  // 1) Callback (ACK)
+  const done = (resp) => {
+    clearTimeout(timeout);
+    if (resp && resp.ok) resolve(resp);
+    else reject(new Error(resp?.error || 'Falha ao reenviar áudio'));
+  };
 
-     // 7) Atualiza status do reenvio e emite para a sala
-     console.log('🔵 Atualizando mensagem original no banco...', {
-      id: mensagem.id,
-      lead_id: mensagem.lead_id,
-      urlMp3Reenviado,
-      mensagemIdExterno: resultado.mensagemId
-    });
+  // 2) Fallback por evento na MESMA conexão
+  const onAck = (resp) => {
+    // garante que só resolve uma vez
+    try { done(resp); } finally { socketProvider.off('reenviarAudioIphoneAck', onAck); }
+  };
+  socketProvider.on('reenviarAudioIphoneAck', onAck);
 
-    const { data: updated, error: updErr } = await supabase
+  // Emit com callback
+  socketProvider.emit(
+    'reenviarAudioIphone',
+    {
+      telefone: mensagem.remetente,
+      mp3Base64: mp3Buffer.toString('base64'),
+      mensagemId: mensagem.id,
+    },
+    done
+  );
+});
+
+
+
+     // 7) Atualiza status do reenvio (com coerção de id e fallback)
+    const msgIdCoerced = /^\d+$/.test(String(mensagem.id)) ? Number(mensagem.id) : String(mensagem.id);
+    const patch = {
+      mensagem_id_externo: resultado.mensagemId,
+      audio_reenviado: true,
+      audio_reenviado_em: new Date().toISOString(),
+      audio_reenviado_url: urlMp3Reenviado
+    };
+
+    let { data: updated, error: updErr } = await supabase
       .from('mensagens')
-      .update({
-        mensagem_id_externo: resultado.mensagemId,
-        audio_reenviado: true,
-        audio_reenviado_em: new Date().toISOString(),
-        audio_reenviado_url: urlMp3Reenviado
-      })
-      .eq('id', mensagem.id)
-      .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url'); // retorna linha atualizada
+      .update(patch)
+      .eq('id', msgIdCoerced)
+      .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
+      .limit(1);
+
+    if (!updErr && (!updated || updated.length === 0) && msgIdCoerced !== mensagem.id) {
+      const resp2 = await supabase
+        .from('mensagens')
+        .update(patch)
+        .eq('id', mensagem.id)
+        .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
+        .limit(1);
+      updated = resp2.data;
+      updErr  = resp2.error;
+    }
 
     if (updErr) {
-      console.error('❌ Erro no UPDATE de reenvio:', updErr.message);
       return res.status(500).json({ error: 'Erro ao salvar status de reenvio: ' + updErr.message });
     }
     if (!updated || updated.length === 0) {
-      console.warn('⚠️ Nenhuma linha atualizada para id:', mensagem.id);
       return res.status(404).json({ error: 'Mensagem não encontrada para atualizar status de reenvio' });
     }
-
-    console.log('🟢 UPDATE ok:', updated[0]);
 
     // Emitir em tempo real para a sala do lead
     try {
       io.to(`lead-${mensagem.lead_id}`).emit('audioReenviado', { mensagemId: mensagem.id });
-      console.log('📣 Emitido "audioReenviado" para sala', `lead-${mensagem.lead_id}`);
-    } catch (e) {
-      console.warn('⚠️ Falha ao emitir "audioReenviado":', e.message);
-    }
+    } catch (_) {}
 
-    console.log('🟢 Reenvio concluído com sucesso!');
     return res.json({ status: 'ok', mensagemId: resultado.mensagemId });
 
   } catch (e) {
@@ -913,12 +969,6 @@ app.put('/api/automacoes-mensagens/:id', async (req, res) => {
 
   res.json(data);
 });
-
-
-
-
-
-
 
 
 
