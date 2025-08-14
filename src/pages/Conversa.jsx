@@ -990,17 +990,23 @@ const handleEnviarArquivo = async (e) => {
       remetente: usuarioAtual.nome,
     });
 
-    await fetch("${import.meta.env.VITE_API_URL}/api/enviar-midia", {
-  method: "POST",
-  headers: { "Content-Type": "application/json" },
-  body: JSON.stringify({
-    telefone: lead.telefone, // ou como está disponível na sua tela
-    arquivos,
-    lead_id: lead.id,
-    remetente_id: usuarioAtual.id,
-    remetente: usuarioAtual.nome,
-  }),
-});
+    const res = await fetch(`${import.meta.env.VITE_BACKEND_URL}/api/enviar-midia`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        telefone: lead.telefone,
+        arquivos,
+        lead_id: lead.id,
+        remetente_id: usuarioAtual.id,
+        remetente: usuarioAtual.nome,
+      }),
+    });
+    
+    const result = await res.json();
+    if (!res.ok || result.status !== "ok") {
+      throw new Error(result.error || `Falha no envio (${res.status})`);
+    }
+    
 
 // NOVO: Dispara automação de status/timeline no backend CRM
 await fetch("https://autocrm-backend.onrender.com/api/evento-mensagem", {

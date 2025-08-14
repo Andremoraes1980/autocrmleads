@@ -31,6 +31,51 @@ const receberQrCode = require('./listeners/provider/receberQrCode');
 const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
+const { randomUUID } = require('crypto'); // sem dependência externa
+const jobIndex = global.__jobIndex || (global.__jobIndex = new Map()); // índice em memória: jobId → { mensagemRowId, lead_id }
+
+// listener único do resultado do provider
+if (!global.__statusEnvioRegistered) {
+  socketProvider.off?.('statusEnvio');
+  socketProvider.on('statusEnvio', async (evt) => {
+    try {
+      const { jobId, ok, mensagemId, error, tipo, para } = evt || {};
+      if (!jobId) return;
+
+      const entry = jobIndex.get(jobId);
+      if (!entry) return;
+
+      const { mensagemRowId, lead_id } = entry;
+
+      const patch = ok
+        ? { mensagem_id_externo: mensagemId || null }
+        : { /* status_envio: 'erro', erro_envio: error */ };
+
+      await supabase
+        .from('mensagens')
+        .update(patch)
+        .eq('id', mensagemRowId);
+
+      jobIndex.delete(jobId);
+
+      try {
+        io.to(`lead-${lead_id}`).emit('statusEnvio', {
+          jobId,
+          ok,
+          mensagemId,
+          mensagemIdLocal: mensagemRowId,
+          error,
+          tipo: tipo || 'texto',   // default neutro; o provider manda 'texto' ou 'midia'
+          para
+        });
+      } catch (_) {}
+    } catch (e) {
+      console.error('❌ [statusEnvio] falha ao processar:', e.message);
+    }
+  });
+  global.__statusEnvioRegistered = true;
+}
+
 
 
 
@@ -274,61 +319,7 @@ console.log("🔥 Evento de mensagem recebido:", req.body);
   }
 });
 
-const { v4: uuidv4 } = require('uuid');
 
-// 🔒 índice em memória para casar jobId → id da mensagem no banco
-const jobIndex = global.__jobIndex || (global.__jobIndex = new Map());
-
-// 🔔 listener único para resultados do provider (padrão moderno)
-if (!global.__statusEnvioRegistered) {
-  socketProvider.off?.('statusEnvio');
-  socketProvider.on('statusEnvio', async (evt) => {
-    try {
-      const { jobId, ok, mensagemId, error, tipo, para } = evt || {};
-      if (!jobId) return;
-
-      const entry = jobIndex.get(jobId);
-      if (!entry) return;
-
-      const { mensagemRowId, lead_id } = entry;
-
-      // atualiza a linha no Supabase (mínimo: id externo)
-      if (ok) {
-        await supabase
-          .from('mensagens')
-          .update({
-            mensagem_id_externo: mensagemId,
-            // (adicione outros campos se existir no schema, ex.: status_envio: 'enviada', enviada_em: new Date().toISOString())
-          })
-          .eq('id', mensagemRowId);
-      } else {
-        await supabase
-          .from('mensagens')
-          .update({
-            // status_envio: 'erro', erro_envio: error
-          })
-          .eq('id', mensagemRowId);
-      }
-
-      // remove do índice e avisa a sala do lead
-      jobIndex.delete(jobId);
-      try {
-        io.to(`lead-${lead_id}`).emit('statusEnvio', {
-          jobId,
-          ok,
-          mensagemId,
-          mensagemIdLocal: mensagemRowId,
-          error,
-          tipo: tipo || 'texto',
-          para
-        });
-      } catch (_) {}
-    } catch (e) {
-      console.error('❌ [statusEnvio] falha ao processar:', e.message);
-    }
-  });
-  global.__statusEnvioRegistered = true;
-}
 
 app.post('/api/enviar-mensagem', async (req, res) => {
   const {
@@ -403,7 +394,7 @@ app.post('/api/enviar-mensagem', async (req, res) => {
     }
 
     const mensagemRowId = inserted.id;
-    const jobId = uuidv4();
+    const jobId = randomUUID();
     jobIndex.set(jobId, { mensagemRowId, lead_id });
 
     // 3) Emitir para o provider com ACK (callback) — resposta rápida
@@ -438,55 +429,49 @@ app.post('/api/enviar-mensagem', async (req, res) => {
 
 app.post('/api/enviar-midia', async (req, res) => {
   console.log("🔵 Recebido POST /api/enviar-midia:", req.body);
+
   let { telefone, arquivos, lead_id, remetente_id, remetente } = req.body;
 
-  if (!telefone || !arquivos?.length) {
-    return res.status(400).json({ error: "Telefone e arquivos obrigatórios" });
+  if (!telefone || !arquivos?.length || !lead_id || !remetente_id || !remetente) {
+    return res.status(400).json({ error: "Telefone, arquivos, lead_id, remetente_id e remetente são obrigatórios." });
   }
 
-  // Buscar lead (se quiser preencher revenda_id, vendedor_id)
+  // Buscar dados do lead
   let revenda_id = null, vendedor_id = null, remetente_nome = remetente;
-  if (lead_id) {
-    const { data: leadData, error: leadError } = await supabase
-      .from('leads')
-      .select('revenda_id,vendedor_id,nome')
-      .eq('id', lead_id)
-      .single();
-    if (!leadError && leadData) {
-      revenda_id = leadData.revenda_id;
-      vendedor_id = leadData.vendedor_id;
-      if (!remetente_nome) remetente_nome = leadData.nome;
-    }
+  const { data: leadData, error: leadError } = await supabase
+    .from('leads')
+    .select('revenda_id,vendedor_id,nome')
+    .eq('id', lead_id)
+    .single();
+  if (!leadError && leadData) {
+    revenda_id = leadData.revenda_id;
+    vendedor_id = leadData.vendedor_id;
+    if (!remetente_nome) remetente_nome = leadData.nome;
   }
 
+  // Normalização/Conversões (ex.: webm → ogg para áudio gravado no navegador)
   for (let i = 0; i < arquivos.length; i++) {
-    let arquivo = arquivos[i];
-    if (arquivo.nome.endsWith('.webm') || arquivo.tipo === 'audio/webm') {
+    const a = arquivos[i];
+    if (a?.nome?.endsWith('.webm') || a?.tipo === 'audio/webm') {
       try {
-        const response = await axios.get(arquivo.url, { responseType: 'arraybuffer' });
+        const response = await axios.get(a.url, { responseType: 'arraybuffer' });
         const webmBuffer = Buffer.from(response.data, 'binary');
         const oggBuffer = await converterWebmParaOgg(webmBuffer);
 
-        const oggName = arquivo.nome.replace(/\.webm$/, '.ogg');
-        const { data: upOgg, error: errOgg } = await supabase
+        const oggName = a.nome.replace(/\.webm$/i, '.ogg');
+        const { error: upErr } = await supabase
           .storage
           .from('mensagens-arquivos')
           .upload(oggName, oggBuffer, { contentType: 'audio/ogg' });
-
-        if (errOgg) throw new Error('Erro ao salvar .ogg no Storage: ' + errOgg.message);
+        if (upErr) throw new Error('Erro ao salvar .ogg no Storage: ' + upErr.message);
 
         const { data: urlData, error: urlErr } = await supabase
           .storage
           .from('mensagens-arquivos')
           .getPublicUrl(oggName);
-
         if (urlErr) throw new Error('Erro ao gerar URL pública .ogg: ' + urlErr.message);
 
-        arquivos[i] = {
-          url: urlData.publicUrl,
-          nome: oggName,
-          tipo: 'audio'
-        };
+        arquivos[i] = { url: urlData.publicUrl, nome: oggName, tipo: 'audio' };
       } catch (err) {
         console.error('❌ Erro na conversão .webm → .ogg:', err);
         return res.status(500).json({ error: 'Erro na conversão .webm para .ogg: ' + err.message });
@@ -494,63 +479,69 @@ app.post('/api/enviar-midia', async (req, res) => {
     }
   }
 
+  // Monta arquivosArray para persistir (um único registro, multiarquivo)
+  const arquivosArray = arquivos.map(a => ({
+    url: a.url,
+    nome: a.nome,
+    tipo: a.tipo || 'imagem'
+  }));
+
   try {
-    // Envia VIA SOCKET para o provider (igual já faz com enviar-mensagem)
-    const ack = await new Promise((resolve, reject) => {
-      const timeout = setTimeout(
-        () => reject(new Error('⏱️ Provider não respondeu em 15 segundos')),
-        15000
-      );
-    
-      console.log("📡 Emitindo via socket → enviarMidia (callback)");
-      socketProvider.emit(
-        'enviarMidia',
-        { telefone, arquivos, lead_id, remetente_id, remetente },
-        (resp) => {
-          clearTimeout(timeout);
-          resolve(resp);
-        }
-      );
-    });
-    
-    if (!ack || ack.ok !== true) {
-      throw new Error(ack?.error || 'Falha no envio de mídia pelo provider');
-    }
-    console.log("✅ Provider confirmou envio de mídia (callback):", ack);
-    
+    // 1) Persist-first: salva a linha no Supabase como "multiarquivo"
+    const { data: inserted, error: insertError } = await supabase
+      .from('mensagens')
+      .insert([{
+        lead_id,
+        revenda_id,
+        vendedor_id,
+        mensagem: arquivosArray.map(a => a.nome).join(', '),
+        canal: 'WhatsApp Cockpit',
+        criado_em: new Date().toISOString(),
+        remetente_id: remetente_id || null,
+        remetente: telefone,
+        remetente_nome,
+        tipo: 'multiarquivo',
+        arquivos: arquivosArray,
+        direcao: 'saida',
+        telefone_cliente: telefone,
+        lida: false,
+        // status_envio: 'pendente', // se existir no schema
+      }])
+      .select('id')
+      .single();
 
-    // Monta array de arquivos e salva uma ÚNICA linha no Supabase, independente da quantidade de arquivos!
-    const arquivosArray = arquivos.map(arquivo => ({
-      url: arquivo.url,
-      nome: arquivo.nome,
-      tipo: arquivo.tipo || 'imagem'
-    }));
-
-    const { error: insertError } = await supabase.from('mensagens').insert([{
-      lead_id,
-      revenda_id,
-      vendedor_id,
-      mensagem: arquivosArray.map(a => a.nome).join(', '), // nomes dos arquivos juntos
-      canal: 'WhatsApp Cockpit',
-      criado_em: new Date().toISOString(),
-      remetente_id: remetente_id || null,
-      remetente: telefone,
-      remetente_nome,
-      tipo: 'multiarquivo',
-      arquivos: arquivosArray,
-      direcao: 'saida',
-      telefone_cliente: telefone,
-      lida: false
-    }]);
     if (insertError) {
       console.error('❌ Erro ao salvar mídia múltipla no Supabase:', insertError.message);
       return res.status(500).json({ error: insertError.message });
     }
 
-    res.json({ status: 'ok' });
+    const mensagemRowId = inserted.id;
+    const jobId = randomUUID();
+    jobIndex.set(jobId, { mensagemRowId, lead_id });
+
+    // 2) Emitir para provider com ACK rápido
+    console.log('🔌 [BACKEND] socketProvider connected?', socketProvider?.connected, 'id:', socketProvider?.id);
+
+    await new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error('Provider não respondeu em 7s')), 7000);
+
+      socketProvider.emit(
+        'enviarMidia',
+        { telefone, arquivos, jobId },
+        (ack) => {
+          clearTimeout(timeout);
+          if (ack && ack.accepted) resolve(true);
+          else reject(new Error(ack?.error || 'Provider recusou envio de mídia'));
+        }
+      );
+    });
+
+    // 3) Responde já; o resultado final virá via statusEnvio
+    return res.json({ status: 'ok', jobId, mensagem_id: mensagemRowId });
+
   } catch (err) {
     console.error("❌ Erro geral ao enviar mídia:", err.message);
-    res.status(500).json({ error: err.message });
+    return res.status(500).json({ error: err.message });
   }
 });
 
