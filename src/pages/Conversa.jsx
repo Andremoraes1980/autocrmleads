@@ -391,33 +391,64 @@ const isAudioSingle =
   </span>
 
   {/* Ticks só para mensagens de SAÍDA */}
-  {msg?.direcao === "saida" && (
-    <span
-      title={
-        (msg?.ack ?? 0) >= 3
-          ? "Lida"
-          : (msg?.ack ?? 0) >= 2
-          ? "Entregue"
-          : (msg?.ack ?? 0) >= 1
-          ? "Enviada"
-          : "Enviando…"
+  {/* Ticks só para mensagens de SAÍDA (ou quando há remetente_id) */}
+{(msg?.direcao === "saida" || msg?.remetente_id) && (
+  <span
+    style={{ display: "inline-flex", alignItems: "center" }}
+    title={
+      // legenda do tooltip
+      (typeof msg?.ack === "number" && msg.ack >= 3)
+        ? "Lida"
+        : (typeof msg?.ack === "number" && msg.ack >= 2)
+        ? "Entregue"
+        : (typeof msg?.ack === "number" && msg.ack >= 1) || (!!msg?.mensagem_id_externo)
+        ? "Enviada"
+        : "Enviando…"
+    }
+  >
+    {(() => {
+      const ack = (typeof msg?.ack === "number") ? msg.ack : null;
+
+      // ✅ enviada se: ack>=1 OU (sem ack mas já temos mensagem_id_externo)
+      const enviada =
+        (ack !== null && ack >= 1) ||
+        (!!msg?.mensagem_id_externo && (ack === null || ack === 0));
+
+      if (ack !== null && ack >= 3) {
+        // ✓✓ azul — lida
+        return (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="#19b2fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 11 15 7 11" />
+            <polyline points="17 6 8 15 4 11" />
+          </svg>
+        );
       }
-      style={{ display: "inline-flex", alignItems: "center" }}
-    >
-      {(msg?.ack ?? 0) >= 2 ? (
-        /* ✓✓ (duplo) */
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={(msg?.ack ?? 0) >= 3 ? "#19b2fa" : "#9e9e9e"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 11 15 7 11" />
-          <polyline points="17 6 8 15 4 11" />
-        </svg>
-      ) : (msg?.ack ?? 0) >= 1 ? (
-        /* ✓ (simples) */
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <polyline points="20 6 9 17 4 12" />
-        </svg>
-      ) : null}
-    </span>
-  )}
+      if (ack !== null && ack >= 2) {
+        // ✓✓ cinza — entregue
+        return (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 11 15 7 11" />
+            <polyline points="17 6 8 15 4 11" />
+          </svg>
+        );
+      }
+      if (enviada) {
+        // ✓ cinza — enviada (ack===1) ou fallback por mensagem_id_externo
+        return (
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+               stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+        );
+      }
+      // … — pendente
+      return <span style={{ marginLeft: 6, fontSize: 12, color: "#9e9e9e" }}>…</span>;
+    })()}
+  </span>
+)}
+
 </div>
 
       </div>
@@ -1430,6 +1461,8 @@ useEffect(() => {
     fetchMensagens();
   // (Por enquanto, não conecta realtime — depois podemos melhorar para usar socket)
   }, [leadId]);
+
+
   
 
   useEffect(() => {
@@ -2734,6 +2767,30 @@ function TimelineVertical({ eventos, usuarios }) {
     </div>
   );
 }
+
+// --- ticks de envio (usado no rodapé do balão) ---
+const stylesTick = {
+  ok:   { marginLeft: 6, fontSize: 12, color: '#2e7d32' }, // verde
+  err:  { marginLeft: 6, fontSize: 12, color: '#c62828' }, // vermelho
+  pend: { marginLeft: 6, fontSize: 12, color: '#9e9e9e' }, // cinza
+};
+
+const renderTick = (m) => {
+  // mostra tick só para mensagens SAÍDAS (enviadas pelo painel)
+  const isSaida = m?.direcao === 'saida' || !!m?.remetente_id;
+  if (!isSaida) return null;
+
+  // prioridade: ack (1=ok, -1=erro). Se vier mensagem_id_externo usamos como "ok".
+  if (m?.ack === 1 || m?.mensagem_id_externo) {
+    return <span title="Enviada" style={stylesTick.ok}>✓</span>;
+  }
+  if (m?.ack === -1) {
+    return <span title="Erro ao enviar" style={stylesTick.err}>⚠️</span>;
+  }
+  // pendente (quando acabou de apertar enviar e ainda não chegou o statusEnvio)
+  return <span title="Enviando…" style={stylesTick.pend}>…</span>;
+};
+
 
 
 export default Conversa;
