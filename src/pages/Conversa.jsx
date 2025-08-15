@@ -1114,49 +1114,77 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   }, []);
 
   // 2. Toda vez que mudar o leadId, muda a sala e listeners
-useEffect(() => {
-  const socket = socketRef.current;
-  if (!socket || !leadId) return;
-
-  console.log("🚪 Emitindo entrarNaSala para:", leadId);
-  socket.emit("entrarNaSala", { lead_id: leadId });
-  console.log("📶 Entrando na sala do lead:", leadId);
-
-  // vamos examinar TODO o payload que chega
-  const handleMensagemRecebida = (payload) => {
-    console.log("📨 [Front] mensagemRecebida payload:", payload);
-    const { lead_id: recebidaDoSocket, mensagem } = payload;
-    if (recebidaDoSocket === leadId) {
-      setMensagens((prev) => [...prev, mensagem]);
-    } else {
-      console.log("📭 Ignorada — veio para outro lead:", recebidaDoSocket);
-    }
-  };
+  useEffect(() => {
+    const socket = socketRef.current;
+    if (!socket || !leadId) return;
   
-  // ✅ NOVO: marcar áudio reenviado em tempo real
-  const handleAudioReenviado = ({ mensagemId }) => {
-    if (!mensagemId) return;
-    // 1) marca em memória (tempo real)
-    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
-    // 2) reflete no array de mensagens (persiste no estado atual da tela)
-    setMensagens((prev) =>
-      prev.map((m) =>
-        m.id === mensagemId ? { ...m, audio_reenviado: true, audio_reenviado_em: new Date().toISOString() } : m
-      )
-    );
-  };
+    // 👋 compat: alguns backends esperam "sala", outros "lead_id"
+    socket.emit("entrarNaSala", { sala: `lead-${leadId}` });
+    socket.emit("entrarNaSala", { lead_id: leadId });
   
-  socket.off("mensagemRecebida");
-  socket.on("mensagemRecebida", handleMensagemRecebida);
+    // ---- mensagens recebidas (entrada) ----
+    const handleMensagemRecebida = (payload) => {
+      const { lead_id: recebidaDoSocket, mensagem } = payload || {};
+      if (recebidaDoSocket === leadId && mensagem) {
+        setMensagens((prev) => [...prev, mensagem]);
+      }
+    };
   
-  socket.off("audioReenviado");
-  socket.on("audioReenviado", handleAudioReenviado);
+    // ---- áudio reenviado (marcar badge verde no card) ----
+    const handleAudioReenviado = ({ mensagemId }) => {
+      if (!mensagemId) return;
+      // 1) estado auxiliar (badge)
+      setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
+      // 2) reflete no array da conversa
+      setMensagens((prev) =>
+        prev.map((m) =>
+          m.id === mensagemId
+            ? { ...m, audio_reenviado: true, audio_reenviado_em: new Date().toISOString() }
+            : m
+        )
+      );
+    };
   
-  return () => {
-    socket.off("mensagemRecebida", handleMensagemRecebida);
-    socket.off("audioReenviado", handleAudioReenviado);
-  };
+    // ✅ ---- status de envio (✓ no balão) ----
+    const handleStatusEnvio = (evt) => {
+      // backend envia: { jobId, ok, mensagemId, mensagemIdLocal, error, tipo, para }
+      const { mensagemIdLocal, ok, mensagemId } = evt || {};
+      if (!mensagemIdLocal) return;
+  
+      setMensagens((prev) =>
+        prev.map((m) =>
+          m.id === mensagemIdLocal
+            ? {
+                ...m,
+                // marca entregue na UI
+                ack: ok ? 1 : m.ack,
+                // se vier um id externo depois, refletimos também
+                ...(mensagemId ? { mensagem_id_externo: mensagemId } : {}),
+              }
+            : m
+        )
+      );
+    };
+  
+    // limpa duplicatas e registra handlers
+    socket.off("mensagemRecebida");
+    socket.on("mensagemRecebida", handleMensagemRecebida);
+  
+    socket.off("audioReenviado");
+    socket.on("audioReenviado", handleAudioReenviado);
+  
+    socket.off("statusEnvio");
+    socket.on("statusEnvio", handleStatusEnvio);
+  
+    return () => {
+      socket.off("mensagemRecebida", handleMensagemRecebida);
+      socket.off("audioReenviado", handleAudioReenviado);
+      socket.off("statusEnvio", handleStatusEnvio);
+      // se você estiver saindo da conversa, opcional:
+      socket.emit("sairDaSala", { sala: `lead-${leadId}` });
+    };
   }, [leadId]);
+  
   }
   
 
