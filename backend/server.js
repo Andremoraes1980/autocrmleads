@@ -626,95 +626,63 @@ app.post('/api/reenviar-arquivo', async (req, res) => {
     return res.status(500).json({ error: 'Erro no upload/URL do mp3: ' + e.message });
   }
 
-  // 6. Solicita o envio ao provider via Socket.IO e aguarda resposta
-  try {
-    console.log('🔵 Emitindo via socket reenviarAudioIphone...');
-    socketProvider.emit('reenviarAudioIphone', {
-      telefone: mensagem.remetente,
-      mp3Base64: mp3Buffer.toString('base64'),
-      mensagemId: mensagem.id
+  // 6) Solicita o envio ao provider via Socket.IO (ACK por callback)
+try {
+  console.log('🔵 Emitindo via socket reenviarAudioIphone...');
+
+  const payload = {
+    telefone: mensagem.remetente,               // JID/telefone do cliente
+    mp3Base64: mp3Buffer.toString('base64'),    // buffer → base64
+    mensagemId: mensagem.id                     // id da linha original
+  };
+
+  const ack = await new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      console.error('🔴 Provider não respondeu em 15s');
+      reject(new Error('Provider não respondeu em 15s'));
+    }, 15000);
+
+    // ✅ único emit com callback
+    socketProvider.emit('reenviarAudioIphone', payload, (resp) => {
+      clearTimeout(timeout);
+      if (resp && resp.ok) {
+        resolve(resp); // { ok: true, mensagemId }
+      } else {
+        reject(new Error(resp?.error || 'Falha ao reenviar áudio'));
+      }
     });
+  });
 
-    // Pede reenvio ao provider e espera ACK por callback OU por evento fallback
-const resultado = await new Promise((resolve, reject) => {
-  const timeout = setTimeout(() => {
-    console.error('🔴 Provider não respondeu em 15s');
-    reject(new Error('Provider não respondeu em 15s'));
-  }, 15000);
-
-  // 1) Callback (ACK)
-  const done = (resp) => {
-    clearTimeout(timeout);
-    if (resp && resp.ok) resolve(resp);
-    else reject(new Error(resp?.error || 'Falha ao reenviar áudio'));
-  };
-
-  // 2) Fallback por evento na MESMA conexão
-  const onAck = (resp) => {
-    // garante que só resolve uma vez
-    try { done(resp); } finally { socketProvider.off('reenviarAudioIphoneAck', onAck); }
-  };
-  socketProvider.on('reenviarAudioIphoneAck', onAck);
-
-  // Emit com callback
-  socketProvider.emit(
-    'reenviarAudioIphone',
-    {
-      telefone: mensagem.remetente,
-      mp3Base64: mp3Buffer.toString('base64'),
-      mensagemId: mensagem.id,
-    },
-    done
-  );
-});
-
-
-
-     // 7) Atualiza status do reenvio (com coerção de id e fallback)
-    const msgIdCoerced = /^\d+$/.test(String(mensagem.id)) ? Number(mensagem.id) : String(mensagem.id);
-    const patch = {
-      mensagem_id_externo: resultado.mensagemId,
+  // 7) Atualiza status do reenvio no Supabase
+  const { error: updErr } = await supabase
+    .from('mensagens')
+    .update({
+      mensagem_id_externo: ack.mensagemId || null,
       audio_reenviado: true,
       audio_reenviado_em: new Date().toISOString(),
       audio_reenviado_url: urlMp3Reenviado
-    };
+    })
+    .eq('id', mensagem.id);
 
-    let { data: updated, error: updErr } = await supabase
-      .from('mensagens')
-      .update(patch)
-      .eq('id', msgIdCoerced)
-      .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
-      .limit(1);
-
-    if (!updErr && (!updated || updated.length === 0) && msgIdCoerced !== mensagem.id) {
-      const resp2 = await supabase
-        .from('mensagens')
-        .update(patch)
-        .eq('id', mensagem.id)
-        .select('id, lead_id, audio_reenviado, audio_reenviado_em, audio_reenviado_url')
-        .limit(1);
-      updated = resp2.data;
-      updErr  = resp2.error;
-    }
-
-    if (updErr) {
-      return res.status(500).json({ error: 'Erro ao salvar status de reenvio: ' + updErr.message });
-    }
-    if (!updated || updated.length === 0) {
-      return res.status(404).json({ error: 'Mensagem não encontrada para atualizar status de reenvio' });
-    }
-
-    // Emitir em tempo real para a sala do lead
-    try {
-      io.to(`lead-${mensagem.lead_id}`).emit('audioReenviado', { mensagemId: mensagem.id });
-    } catch (_) {}
-
-    return res.json({ status: 'ok', mensagemId: resultado.mensagemId });
-
-  } catch (e) {
-    console.error('🔴 Erro ao reenviar via provider:', e.message);
-    return res.status(500).json({ error: 'Erro ao reenviar via provider: ' + e.message });
+  if (updErr) {
+    console.error('❌ Erro no UPDATE de reenvio:', updErr.message);
+    return res.status(500).json({ error: 'Erro ao salvar status de reenvio: ' + updErr.message });
   }
+
+  // Notifica em tempo real a sala do lead
+  try {
+    io.to(`lead-${mensagem.lead_id}`).emit('audioReenviado', { mensagemId: mensagem.id });
+    console.log('📣 Emitido "audioReenviado" para sala', `lead-${mensagem.lead_id}`);
+  } catch (_) {}
+
+  console.log('🟢 Reenvio concluído com sucesso!');
+  return res.json({ status: 'ok', mensagemId: ack.mensagemId });
+
+} catch (e) {
+  console.error('🔴 Erro ao reenviar via provider:', e.message);
+  return res.status(500).json({ error: 'Erro ao reenviar via provider: ' + e.message });
+}
+
 });
 
 // Lista mensagens de um lead (inclui campos de reenvio)
