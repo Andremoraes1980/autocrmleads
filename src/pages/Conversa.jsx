@@ -382,9 +382,44 @@ const isAudioSingle =
 
        
 
-        <div className={styles["conversa-time"]}>
-          {new Date(msg.criado_em).toLocaleTimeString([], { hour:"2-digit", minute:"2-digit" })}
-        </div>
+<div
+  className={styles["conversa-time"]}
+  style={{ display: "flex", alignItems: "center", gap: 6, justifyContent: "flex-end" }}
+>
+  <span>
+    {new Date(msg.criado_em).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+  </span>
+
+  {/* Ticks só para mensagens de SAÍDA */}
+  {msg?.direcao === "saida" && (
+    <span
+      title={
+        (msg?.ack ?? 0) >= 3
+          ? "Lida"
+          : (msg?.ack ?? 0) >= 2
+          ? "Entregue"
+          : (msg?.ack ?? 0) >= 1
+          ? "Enviada"
+          : "Enviando…"
+      }
+      style={{ display: "inline-flex", alignItems: "center" }}
+    >
+      {(msg?.ack ?? 0) >= 2 ? (
+        /* ✓✓ (duplo) */
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke={(msg?.ack ?? 0) >= 3 ? "#19b2fa" : "#9e9e9e"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 11 15 7 11" />
+          <polyline points="17 6 8 15 4 11" />
+        </svg>
+      ) : (msg?.ack ?? 0) >= 1 ? (
+        /* ✓ (simples) */
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <polyline points="20 6 9 17 4 12" />
+        </svg>
+      ) : null}
+    </span>
+  )}
+</div>
+
       </div>
 
       {/* Inicial – usuário interno na DIREITA */}
@@ -2711,3 +2746,4 @@ function TimelineVertical({ eventos, usuarios }) {
 
 
 export default Conversa;
+
