@@ -32,54 +32,64 @@ const io = createSocketServer(server);
 const entrarNaSala = require('./listeners/frontend/entrarNaSala');
 const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
 const { randomUUID } = require('crypto'); // sem dependência externa
-const jobIndex = global.__jobIndex || (global.__jobIndex = new Map()); // índice em memória: jobId → { mensagemRowId, lead_id }
 
-// listener único do resultado do provider
+
+
+// --- BEGIN: listener statusEnvio único ---
+const jobIndex = global.__jobIndex || (global.__jobIndex = new Map());
+
 if (!global.__statusEnvioRegistered) {
-  // não precisa do "off" aqui, já que registramos uma única vez
+  socketProvider.off?.('statusEnvio');
   socketProvider.on('statusEnvio', async (evt = {}) => {
     try {
       const { jobId, ok, mensagemId, error, tipo, para } = evt;
-      if (!jobId) return;
+      console.log('[V2] socketProvider.onAny → statusEnvio {',
+        'jobId:', jobId, ', ok:', ok, ', mensagemId:', mensagemId, ', tipo:', tipo, ', para:', para, '}');
+
+      if (!jobId) { console.warn('statusEnvio sem jobId, ignorado'); return; }
 
       const entry = jobIndex.get(jobId);
-      if (!entry) {
-        console.warn('⚠️ [statusEnvio] jobId desconhecido (entrada ausente no índice):', jobId, evt);
-        return;
-      }
+      if (!entry) { console.warn('statusEnvio: jobId não encontrado no índice:', jobId); return; }
 
       const { mensagemRowId, lead_id } = entry;
 
+      // monta patch para o banco
       const patch = ok
-        ? { mensagem_id_externo: mensagemId || null }
-        : { /* se quiser, adicione campos de erro: status_envio: 'erro', erro_envio: error */ };
+        ? { mensagem_id_externo: mensagemId || null, ack: 1 }   // ack = 1 = enviada
+        : { ack: -1 /*, erro_envio: error */ };
 
-      const { error: upErr } = await supabase
+      console.log('→ UPDATE mensagens set', patch, 'where id =', mensagemRowId);
+
+      const { data: upd, error: updErr } = await supabase
         .from('mensagens')
         .update(patch)
-        .eq('id', mensagemRowId);
+        .eq('id', mensagemRowId)
+        .select('id, mensagem_id_externo, ack')
+        .limit(1);
 
-      if (upErr) {
-        console.error('❌ [statusEnvio] erro ao atualizar mensagem:', upErr.message, {
-          jobId, mensagemRowId, ok, mensagemId, tipo
-        });
-        // segue emitindo para o front, para não travar UX
+      if (updErr) {
+        console.error('❌ UPDATE falhou:', updErr.message);
+      } else {
+        console.log('✅ UPDATE ok:', upd?.[0]);
       }
 
+      // retira do índice (job concluído)
       jobIndex.delete(jobId);
 
+      // notifica a sala do lead para o front pintar o tick
       try {
         io.to(`lead-${lead_id}`).emit('statusEnvio', {
           jobId,
           ok,
           mensagemId,
-          mensagemIdLocal: mensagemRowId,
+          mensagemIdLocal: mensagemRowId, // ← use isso no front para casar
           error,
-          tipo: tipo || 'texto',   // provider manda 'texto' ou 'midia'
+          tipo: tipo || 'texto',
           para
         });
+        console.log('📣 emit → statusEnvio → sala', `lead-${lead_id}`);
       } catch (e) {
-        console.warn('⚠️ [statusEnvio] falha ao emitir para sala:', `lead-${lead_id}`, e.message);
+        console.warn('⚠️ falha ao emitir statusEnvio para sala:', e.message);
       }
     } catch (e) {
       console.error('❌ [statusEnvio] falha ao processar:', e.message);
@@ -88,6 +98,8 @@ if (!global.__statusEnvioRegistered) {
 
   global.__statusEnvioRegistered = true;
 }
+// --- END: listener statusEnvio único ---
+
 
 
 

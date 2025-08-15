@@ -1180,26 +1180,17 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       );
     };
   
-    // ✅ ---- status de envio (✓ no balão) ----
-    const handleStatusEnvio = (evt) => {
-      // backend envia: { jobId, ok, mensagemId, mensagemIdLocal, error, tipo, para }
-      const { mensagemIdLocal, ok, mensagemId } = evt || {};
-      if (!mensagemIdLocal) return;
-  
-      setMensagens((prev) =>
-        prev.map((m) =>
-          m.id === mensagemIdLocal
-            ? {
-                ...m,
-                // marca entregue na UI
-                ack: ok ? 1 : m.ack,
-                // se vier um id externo depois, refletimos também
-                ...(mensagemId ? { mensagem_id_externo: mensagemId } : {}),
-              }
-            : m
-        )
-      );
-    };
+     // ✅ NOVO: tick de envio (texto/mídia)
+  const handleStatusEnvio = ({ mensagemIdLocal, ok }) => {
+    if (!mensagemIdLocal) return;
+    setMensagens(prev =>
+      prev.map(m =>
+        m.id === mensagemIdLocal
+          ? { ...m, ack: ok ? 1 : -1 } // 1=ok; -1=erro
+          : m
+      )
+    );
+  };
   
     // limpa duplicatas e registra handlers
     socket.off("mensagemRecebida");
