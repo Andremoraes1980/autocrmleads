@@ -36,25 +36,35 @@ const jobIndex = global.__jobIndex || (global.__jobIndex = new Map()); // índic
 
 // listener único do resultado do provider
 if (!global.__statusEnvioRegistered) {
-  socketProvider.off?.('statusEnvio');
-  socketProvider.on('statusEnvio', async (evt) => {
+  // não precisa do "off" aqui, já que registramos uma única vez
+  socketProvider.on('statusEnvio', async (evt = {}) => {
     try {
-      const { jobId, ok, mensagemId, error, tipo, para } = evt || {};
+      const { jobId, ok, mensagemId, error, tipo, para } = evt;
       if (!jobId) return;
 
       const entry = jobIndex.get(jobId);
-      if (!entry) return;
+      if (!entry) {
+        console.warn('⚠️ [statusEnvio] jobId desconhecido (entrada ausente no índice):', jobId, evt);
+        return;
+      }
 
       const { mensagemRowId, lead_id } = entry;
 
       const patch = ok
         ? { mensagem_id_externo: mensagemId || null }
-        : { /* status_envio: 'erro', erro_envio: error */ };
+        : { /* se quiser, adicione campos de erro: status_envio: 'erro', erro_envio: error */ };
 
-      await supabase
+      const { error: upErr } = await supabase
         .from('mensagens')
         .update(patch)
         .eq('id', mensagemRowId);
+
+      if (upErr) {
+        console.error('❌ [statusEnvio] erro ao atualizar mensagem:', upErr.message, {
+          jobId, mensagemRowId, ok, mensagemId, tipo
+        });
+        // segue emitindo para o front, para não travar UX
+      }
 
       jobIndex.delete(jobId);
 
@@ -65,16 +75,20 @@ if (!global.__statusEnvioRegistered) {
           mensagemId,
           mensagemIdLocal: mensagemRowId,
           error,
-          tipo: tipo || 'texto',   // default neutro; o provider manda 'texto' ou 'midia'
+          tipo: tipo || 'texto',   // provider manda 'texto' ou 'midia'
           para
         });
-      } catch (_) {}
+      } catch (e) {
+        console.warn('⚠️ [statusEnvio] falha ao emitir para sala:', `lead-${lead_id}`, e.message);
+      }
     } catch (e) {
       console.error('❌ [statusEnvio] falha ao processar:', e.message);
     }
   });
+
   global.__statusEnvioRegistered = true;
 }
+
 
 
 
