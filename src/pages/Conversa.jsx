@@ -1187,6 +1187,15 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     // 👋 compat: alguns backends esperam "sala", outros "lead_id"
     socket.emit("entrarNaSala", { sala: `lead-${leadId}` });
     socket.emit("entrarNaSala", { lead_id: leadId });
+
+    // util: nunca regredir o ack (1->2->3->4)
+  const normalizeAck = (prevAck = 0, nextAck = 0) => {
+    const p = Number(prevAck ?? 0);
+    const n = Number(nextAck ?? 0);
+    // -1 = erro tem prioridade, senão é monotônico
+    if (n === -1) return -1;
+    return Math.max(p, n);
+  };
   
     // ---- mensagens recebidas (entrada) ----
     const handleMensagemRecebida = (payload) => {
@@ -1211,15 +1220,23 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       );
     };
   
-     // ✅ NOVO: tick de envio (texto/mídia)
-  const handleStatusEnvio = ({ mensagemIdLocal, ok }) => {
-    if (!mensagemIdLocal) return;
-    setMensagens(prev =>
-      prev.map(m =>
-        m.id === mensagemIdLocal
-          ? { ...m, ack: ok ? 1 : -1 } // 1=ok; -1=erro
-          : m
-      )
+     
+   // ✅ NOVO: atualiza ack (✓, ✓✓, ✓✓ azul)
+   const handleStatusEnvio = (evt = {}) => {
+    const { mensagemIdLocal, mensagemId, ack } = evt;
+
+    setMensagens((prev) =>
+      prev.map((m) => {
+        // casa por id local salvo ao inserir
+        if (mensagemIdLocal && m.id === mensagemIdLocal) {
+          return { ...m, ack: normalizeAck(m.ack, ack) };
+        }
+        // ou casa por id externo do WhatsApp
+        if (mensagemId && m.mensagem_id_externo === mensagemId) {
+          return { ...m, ack: normalizeAck(m.ack, ack) };
+        }
+        return m;
+      })
     );
   };
   

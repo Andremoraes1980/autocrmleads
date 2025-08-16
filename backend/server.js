@@ -61,17 +61,18 @@ if (!global.__statusEnvioRegistered) {
       console.log('→ UPDATE mensagens set', patch, 'where id =', mensagemRowId);
 
       const { data: upd, error: updErr } = await supabase
-        .from('mensagens')
-        .update(patch)
-        .eq('id', mensagemRowId)
-        .select('id, mensagem_id_externo, ack')
-        .limit(1);
+  .from('mensagens')
+  .update(patch)
+  .eq('id', mensagemRowId)
+  .select('id, mensagem_id_externo, ack')
+  .single(); // ← garante 1 linha (ou erro explícito)
 
-      if (updErr) {
-        console.error('❌ UPDATE falhou:', updErr.message);
-      } else {
-        console.log('✅ UPDATE ok:', upd?.[0]);
-      }
+if (updErr) {
+  console.error('❌ UPDATE falhou:', updErr.message, { mensagemRowId, patch });
+} else {
+  console.log('✅ UPDATE ok:', upd); // ← agora é objeto, não array
+}
+
 
       // retira do índice (job concluído)
       jobIndex.delete(jobId);
