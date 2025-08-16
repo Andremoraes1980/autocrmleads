@@ -1199,7 +1199,8 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     if (!socket || !leadId) return;
   
     // 👋 compat: alguns backends esperam "sala", outros "lead_id"
-    
+    console.log("🚪 Entrando na sala:", `lead-${leadId}`);
+
     socket.emit("entrarNaSala", { sala: `lead-${leadId}`, lead_id: leadId });
 
 
