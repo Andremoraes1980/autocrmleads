@@ -1195,11 +1195,17 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
 
   // 2. Toda vez que mudar o leadId, muda a sala e listeners
   useEffect(() => {
+    console.log("🟢 useEffect disparou com leadId:", leadId);
     const socket = socketRef.current;
-    if (!socket || !leadId) return;
+    console.log("🔌 socketRef.current:", socket);
+
+        if (!socket || !leadId)
+    console.warn("⚠️ socket ainda não está pronto");
+    return;
+    
   
     // 👋 compat: alguns backends esperam "sala", outros "lead_id"
-    console.log("🚪 Entrando na sala:", `lead-${leadId}`);
+    console.log("🚪 Entrando na sala FronT:", `lead-${leadId}`);
 
     socket.emit("entrarNaSala", { sala: `lead-${leadId}`, lead_id: leadId });
 
