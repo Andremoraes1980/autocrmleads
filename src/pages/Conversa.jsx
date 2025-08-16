@@ -825,11 +825,25 @@ const fetchMensagens = async () => {
     const res = await fetch(`${import.meta.env.VITE_API_URL}/api/mensagens/${leadId}`);
     const data = await res.json();
     console.log("🟢 Mensagens recebidas do back:", data);
-    setMensagens(data || []);
-    console.log("🟢 Mensagens buscadas via API REST:", data);
-  } catch (err) {
-    console.error("❌ Erro ao buscar mensagens via API REST:", err);
-  }
+
+     // ✅ normaliza ack (número) e garante defaults
+     const normalizadas = (data || []).map(m => ({
+      ...m,
+      ack: Number(m?.ack ?? 0),                       // 0,1,2,3,-1
+      mensagem_id_externo: m?.mensagem_id_externo ?? null,
+      audio_reenviado: Boolean(m?.audio_reenviado),   // bool consistente
+    }));
+
+     // (opcional) ordenar por criado_em
+     normalizadas.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
+
+     setMensagens(normalizadas);
+
+
+     console.log("🟢 Mensagens (normalizadas):", normalizadas);
+    } catch (err) {
+      console.error("❌ Erro ao buscar mensagens via API REST:", err);
+    }
 };
 
 const handleGravarAudio = () => {
