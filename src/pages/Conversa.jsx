@@ -1199,7 +1199,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     if (!socket || !leadId) return;
   
     // 👋 compat: alguns backends esperam "sala", outros "lead_id"
-    socket.emit("entrarNaSala", { sala: `lead-${leadId}` });
+    
     socket.emit("entrarNaSala", { lead_id: leadId });
 
     // util: nunca regredir o ack (1->2->3->4)
@@ -1214,7 +1214,11 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   const handleAckMensagem = ({ mensagemIdLocal, ack }) => {
     if (!mensagemIdLocal) return;
     setMensagens((prev) =>
-      prev.map((m) => (m.id === mensagemIdLocal ? { ...m, ack } : m))
+    prev.map((m) =>
+           m.id === mensagemIdLocal
+           ? { ...m, ack: normalizeAck(m.ack, ack) }
+           : m
+           )
     );
   };
   
@@ -1244,6 +1248,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
      
    // ✅ NOVO: atualiza ack (✓, ✓✓, ✓✓ azul)
    const handleStatusEnvio = (evt = {}) => {
+    console.log("[Front] statusEnvio recebido:", evt);
     const { mensagemIdLocal, mensagemId, ack } = evt;
 
     setMensagens((prev) =>
