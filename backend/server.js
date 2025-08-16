@@ -122,24 +122,30 @@ async function handleStatusEnvio(evt = {}) {
       let alvo = rows1?.[0] || null;
 
       // 2) fallback: última mensagem de SAÍDA desse telefone ainda SEM id_externo
-      if (!alvo) {
-        const tel = String(para || '').replace(/\D/g, '');
-        console.log("🧪[BACK] fallback por telefone_cliente (pendente de id_externo):", tel);
+if (!alvo) {
+  const raw = String(para || '');
+  const digits = raw.replace(/\D/g, '');
+  const digitsNo55 = digits.replace(/^55/, '');           // tenta sem DDI 55
+  const candidatos = Array.from(new Set([digits, digitsNo55])).filter(Boolean);
 
-        const { data: rowsTel, error: errTel } = await supabase
-          .from('mensagens')
-          .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente')
-          .eq('telefone_cliente', tel)
-          .eq('direcao', 'saida')
-          .is('mensagem_id_externo', null)              // ← PONTO-CHAVE 1
-          .order('criado_em', { ascending: false })
-          .limit(1);
+  console.log("🧪[BACK] fallback por telefone_cliente:", { candidatos });
 
-        if (!errTel && rowsTel?.[0]) {
-          alvo = rowsTel[0];
-          console.log("🧪[BACK] fallback HIT id:", alvo.id);
-        }
-      }
+  const { data: rowsTel, error: errTel } = await supabase
+    .from('mensagens')
+    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, created_at')
+    .eq('direcao', 'saida')
+    .is('mensagem_id_externo', null)
+    .in('telefone_cliente', candidatos)                    // aceita com 55 e sem 55
+    .order('created_at', { ascending: false })            // usa created_at (ajuste se sua coluna for outra)
+    .limit(1);
+
+  if (!errTel && rowsTel?.[0]) {
+    alvo = rowsTel[0];
+    console.log("🧪[BACK] fallback HIT id:", alvo.id, "tel_banco:", alvo.telefone_cliente);
+  }
+}
+
+
 
       if (!alvo) {
         console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
