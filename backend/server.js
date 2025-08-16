@@ -34,11 +34,20 @@ const { converterOggParaMp3 } = require('./services/converterOggParaMp3');
 const { randomUUID } = require('crypto'); // sem dependência externa
 
 
+// helper: normaliza telefone → só dígitos com prefixo 55 (remove @c.us)
+const toE164 = (v = '') => {
+  let d = String(v).replace(/@c\.us$/, '').replace(/\D/g, '');
+  if (!d.startsWith('55')) d = '55' + d;
+  return d;
+};
+
+
+
 
 // --- BEGIN: listener statusEnvio único ---
 const jobIndex = global.__jobIndex || (global.__jobIndex = new Map());
 
-// === SUBSTITUIR BLOCO statusEnvio (INÍCIO) ===============================
+
 if (!global.__statusEnvioRegistered) {
   socketProvider.off?.('statusEnvio');
   socketProvider.on('statusEnvio', async (evt = {}) => {
@@ -58,9 +67,12 @@ if (!global.__statusEnvioRegistered) {
       if (jobId && jobIndex.has(jobId)) {
         const { mensagemRowId, lead_id } = jobIndex.get(jobId);
 
-        const patch = ok
-          ? { ack: 1, mensagem_id_externo: mensagemId || null }
-          : { ack: -1 /*, erro_envio: error */ };
+        // ✅ não grava o campo se não existir mensagemId
+const patch = ok
+? (mensagemId
+    ? { ack: 1, mensagem_id_externo: mensagemId }
+    : { ack: 1 })
+: { ack: -1 /*, erro_envio: error */ };
 
         console.log("🧪[BACK] jobId→UPDATE:", { id: mensagemRowId, patch });
 
@@ -93,69 +105,77 @@ if (!global.__statusEnvioRegistered) {
       }
 
       // CAMINHO B) ACKs 2/3/4 vindos do provider (message_ack)
-      if (mensagemId) {
-        console.log("🧪[BACK] ACK por mensagemId:", { mensagemId, ack, para });
+if (mensagemId) {
+  console.log("🧪[BACK] ACK por mensagemId:", { mensagemId, ack, para });
 
-        // 1) tenta achar pela mensagem_id_externo
-        let { data: rows1, error: err1 } = await supabase
-          .from('mensagens')
-          .select('id, lead_id, ack')
-          .eq('mensagem_id_externo', mensagemId)
-          .order('criado_em', { ascending: false })
-          .limit(1);
+  // 1) tenta achar pela mensagem_id_externo (caminho ideal)
+  const { data: rows1, error: err1 } = await supabase
+    .from('mensagens')
+    .select('id, lead_id, ack, mensagem_id_externo')
+    .eq('mensagem_id_externo', mensagemId)
+    .order('criado_em', { ascending: false })
+    .limit(1);
 
-        let alvo = rows1 && rows1[0];
+  let alvo = rows1?.[0] || null;
 
-        // 2) fallback: pega a ÚLTIMA mensagem de saída para esse telefone_cliente
-        if (!alvo) {
-          const tel = String(para || '').replace(/\D/g, '');
-          console.log("🧪[BACK] fallback por telefone_cliente:", tel);
+  // 2) fallback: última mensagem de SAÍDA desse telefone ainda SEM id_externo
+  if (!alvo) {
+    const tel = String(para || '').replace(/\D/g, '');
+    console.log("🧪[BACK] fallback por telefone_cliente (pendente de id_externo):", tel);
 
-          const { data: rowsTel, error: errTel } = await supabase
-            .from('mensagens')
-            .select('id, lead_id, ack')
-            .eq('telefone_cliente', tel)
-            .eq('direcao', 'saida')
-            .order('criado_em', { ascending: false })
-            .limit(1);
+    const { data: rowsTel, error: errTel } = await supabase
+      .from('mensagens')
+      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente')
+      .eq('telefone_cliente', tel)
+      .eq('direcao', 'saida')
+      .is('mensagem_id_externo', null)              // ← PONTO-CHAVE 1
+      .order('criado_em', { ascending: false })
+      .limit(1);
 
-          if (!errTel && rowsTel && rowsTel[0]) {
-            alvo = rowsTel[0];
-            console.log("🧪[BACK] fallback HIT id:", alvo.id);
-          }
-        }
+    if (!errTel && rowsTel?.[0]) {
+      alvo = rowsTel[0];
+      console.log("🧪[BACK] fallback HIT id:", alvo.id);
+    }
+  }
 
-        if (!alvo) {
-          console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
-          return;
-        }
+  if (!alvo) {
+    console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
+    return;
+  }
 
-        const novoAck = normalizeAck(alvo.ack, ack);
-        const { data: upd2, error: updErr2 } = await supabase
-          .from('mensagens')
-          .update({ ack: novoAck })
-          .eq('id', alvo.id)
-          .select('id, lead_id, ack')
-          .single();
+  const novoAck = normalizeAck(alvo.ack, ack);
 
-        if (updErr2) {
-          console.error("❌ UPDATE ack falhou:", updErr2.message);
-          return;
-        }
+  // se viemos pelo fallback, **preenchermos o id externo agora**
+  const patch = alvo.mensagem_id_externo
+    ? { ack: novoAck }
+    : { ack: novoAck, mensagem_id_externo: mensagemId };  // ← PONTO-CHAVE 2
 
-        console.log("🧪[BACK] UPDATE ack ok:", upd2);
+  const { data: upd2, error: updErr2 } = await supabase
+    .from('mensagens')
+    .update(patch)
+    .eq('id', alvo.id)
+    .select('id, lead_id, ack, mensagem_id_externo')
+    .single();
 
-        // notifica o front (casa por id local OU por mensagem_id_externo)
-        io.to(`lead-${upd2.lead_id}`).emit('statusEnvio', {
-          mensagemIdLocal: upd2.id,     // ← front pode casar por este
-          mensagemId,                   // ← ou por este
-          ack: upd2.ack,
-          tipo: tipo || 'texto',
-          para
-        });
-        console.log("🧪[BACK] EMIT (mensagemId) →", { sala: `lead-${upd2.lead_id}`, idLocal: upd2.id, ack: upd2.ack });
-        return;
-      }
+  if (updErr2) {
+    console.error("❌ UPDATE ack falhou:", updErr2.message);
+    return;
+  }
+
+  console.log("🧪[BACK] UPDATE ack ok:", upd2);
+
+  // notifica o front (casa por id local OU por mensagem_id_externo)
+  io.to(`lead-${upd2.lead_id}`).emit('statusEnvio', {
+    mensagemIdLocal: upd2.id,
+    mensagemId: upd2.mensagem_id_externo || mensagemId,
+    ack: upd2.ack,
+    tipo: tipo || 'texto',
+    para
+  });
+  console.log("🧪[BACK] EMIT (mensagemId) →", { sala: `lead-${upd2.lead_id}`, idLocal: upd2.id, ack: upd2.ack });
+  return;
+}
+
 
       // Se chegou aqui, não é jobId nem mensagemId válido
       console.warn("🧪[BACK] statusEnvio ignorado (sem jobId/mensagemId).");
@@ -169,79 +189,6 @@ if (!global.__statusEnvioRegistered) {
 }
 
 // --- END: listener statusEnvio único ---
-
-// Normaliza telefone "55...@c.us" -> apenas dígitos
-function normalizarTelefoneJid(jid) {
-  if (!jid) return null;
-  const only = String(jid).replace(/[^\d]/g, "");
-  return only || null;
-}
-
-// ✅ ACKS DE ENVIO (2=entregue; 3=lida; 4=ouvida)
-socketProvider.off?.('ackMensagem'); // evita múltiplos handlers
-socketProvider.on('ackMensagem', async ({ mensagemId, ack, to }) => {
-  try {
-    if (!ack) return;
-
-    console.log('[BACKEND] ackMensagem recebido:', { mensagemId, ack, to });
-
-    // 1) tenta atualizar pela mensagem_id_externo (ideal)
-    let { data: rows, error } = await supabase
-      .from('mensagens')
-      .update({ ack, mensagem_id_externo: mensagemId })
-      .eq('mensagem_id_externo', mensagemId)
-      .select('id, lead_id')
-      .limit(1);
-
-    if (error) {
-      console.error('❌ UPDATE por mensagem_id_externo falhou:', error.message);
-    }
-
-    let row = rows?.[0] || null;
-
-    // 2) fallback: se ainda não temos mensagem_id_externo (foi null no envio),
-    // casa pela última saída para esse telefone
-    if (!row) {
-      const tel = normalizarTelefoneJid(to);
-      const { data: ult, error: errSel } = await supabase
-        .from('mensagens')
-        .select('id, lead_id')
-        .eq('direcao', 'saida')
-        .eq('telefone_cliente', tel)
-        .order('criado_em', { ascending: false })
-        .limit(1);
-
-      if (!errSel && ult?.length) {
-        row = ult[0];
-        const { error: errUpd } = await supabase
-          .from('mensagens')
-          .update({ ack, mensagem_id_externo: mensagemId })
-          .eq('id', row.id);
-        if (errUpd) console.error('❌ UPDATE fallback falhou:', errUpd.message);
-      }
-    }
-
-    // 3) se achou a linha, avisa o front em tempo real
-    if (row?.id && row?.lead_id) {
-      io.to(`lead-${row.lead_id}`).emit('ackMensagem', {
-        mensagemIdLocal: row.id,
-        mensagemIdExterno: mensagemId,
-        ack
-      });
-      console.log('📣 emit → ackMensagem sala', `lead-${row.lead_id}`, { id: row.id, ack });
-    }
-  } catch (e) {
-    console.error('❌ handler ackMensagem:', e.message);
-  }
-});
-
-
-
-
-
-
-
-
 
 
 
