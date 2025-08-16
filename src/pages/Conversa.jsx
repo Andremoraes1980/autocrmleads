@@ -1210,6 +1210,13 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     if (n === -1) return -1;
     return Math.max(p, n);
   };
+
+  const handleAckMensagem = ({ mensagemIdLocal, ack }) => {
+    if (!mensagemIdLocal) return;
+    setMensagens((prev) =>
+      prev.map((m) => (m.id === mensagemIdLocal ? { ...m, ack } : m))
+    );
+  };
   
     // ---- mensagens recebidas (entrada) ----
     const handleMensagemRecebida = (payload) => {
@@ -1263,11 +1270,15 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   
     socket.off("statusEnvio");
     socket.on("statusEnvio", handleStatusEnvio);
+
+    socket.off("ackMensagem");
+    socket.on("ackMensagem", handleAckMensagem);
   
     return () => {
       socket.off("mensagemRecebida", handleMensagemRecebida);
       socket.off("audioReenviado", handleAudioReenviado);
       socket.off("statusEnvio", handleStatusEnvio);
+      socket.off("ackMensagem", handleAckMensagem);
       // se você estiver saindo da conversa, opcional:
       socket.emit("sairDaSala", { sala: `lead-${leadId}` });
     };
