@@ -38,113 +38,133 @@ const { randomUUID } = require('crypto'); // sem dependência externa
 // --- BEGIN: listener statusEnvio único ---
 const jobIndex = global.__jobIndex || (global.__jobIndex = new Map());
 
+// === SUBSTITUIR BLOCO statusEnvio (INÍCIO) ===============================
 if (!global.__statusEnvioRegistered) {
   socketProvider.off?.('statusEnvio');
   socketProvider.on('statusEnvio', async (evt = {}) => {
+    // DEBUG enxuto
+    console.log("🧪[BACK] statusEnvio RX:", JSON.stringify(evt));
+
+    const { jobId, ok, mensagemId, ack, tipo, para } = evt;
+    // helper: ack nunca regride (1→2→3→4), exceto erro -1
+    const normalizeAck = (prev = 0, next = 0) => {
+      const p = Number(prev ?? 0), n = Number(next ?? 0);
+      if (n === -1) return -1;
+      return Math.max(p, n);
+    };
+
     try {
-      const { jobId, ok, mensagemId, ack, error, tipo, para } = evt;
-      console.log('[ACK] statusEnvio <-', evt);
+      // CAMINHO A) envio inicial (veio com jobId do /api/enviar-*)
+      if (jobId && jobIndex.has(jobId)) {
+        const { mensagemRowId, lead_id } = jobIndex.get(jobId);
 
-      // 1) CAMINHO "ENVIO INICIAL" (veio com jobId): gravamos ack=1 e, se houver, mensagem_id_externo
-      if (jobId) {
-        const entry = jobIndex.get(jobId);
-        if (!entry) return;
+        const patch = ok
+          ? { ack: 1, mensagem_id_externo: mensagemId || null }
+          : { ack: -1 /*, erro_envio: error */ };
 
-        const { mensagemRowId, lead_id } = entry;
-        const patch = { ack: 1 };
-        if (mensagemId) patch.mensagem_id_externo = mensagemId;
+        console.log("🧪[BACK] jobId→UPDATE:", { id: mensagemRowId, patch });
 
-        const { data: upd, error: updErr } = await supabase
+        const { data: updRows, error: updErr } = await supabase
           .from('mensagens')
           .update(patch)
           .eq('id', mensagemRowId)
-          .select('id, lead_id')
-          .limit(1);
+          .select('id, lead_id, mensagem_id_externo, ack')
+          .single();
 
         if (updErr) {
-          console.error('❌ UPDATE (jobId) falhou:', updErr.message);
-          return;
+          console.error('❌ jobId UPDATE falhou:', updErr.message);
+        } else {
+          console.log('🧪[BACK] jobId→UPDATE ok:', updRows);
+          // notifica o front (casa por id local)
+          io.to(`lead-${lead_id}`).emit('statusEnvio', {
+            jobId,
+            ok,
+            mensagemId,
+            mensagemIdLocal: mensagemRowId,
+            ack: updRows.ack,
+            tipo: tipo || 'texto',
+            para
+          });
+          console.log("🧪[BACK] EMIT (jobId) →", { sala: `lead-${lead_id}`, idLocal: mensagemRowId, ack: updRows.ack });
         }
 
         jobIndex.delete(jobId);
-
-        const row = upd?.[0];
-        if (row) {
-          io.to(`lead-${row.lead_id}`).emit('statusEnvio', {
-            ok: true,
-            tipo: tipo || 'texto',
-            mensagemIdLocal: row.id,
-            ack: 1
-          });
-        }
         return;
       }
 
-      // 2) CAMINHO "ACKS TARDIOS" (2/3/4): sem jobId → atualizar pela mensagem externa; se não tiver, usar fallback por telefone
-      if (!mensagemId && !para) {
-        console.warn('⚠️ ACK sem jobId e sem mensagemId/para — ignorado');
-        return;
-      }
-
-      let row = null;
-
-      // 2.1) tenta por mensagem_id_externo
+      // CAMINHO B) ACKs 2/3/4 vindos do provider (message_ack)
       if (mensagemId) {
-        const { data: up1, error: er1 } = await supabase
+        console.log("🧪[BACK] ACK por mensagemId:", { mensagemId, ack, para });
+
+        // 1) tenta achar pela mensagem_id_externo
+        let { data: rows1, error: err1 } = await supabase
           .from('mensagens')
-          .update({ ack })
+          .select('id, lead_id, ack')
           .eq('mensagem_id_externo', mensagemId)
-          .select('id, lead_id')
-          .limit(1);
-
-        if (er1) { console.error('❌ UPDATE por mensagem_id_externo:', er1.message); return; }
-        row = up1?.[0];
-      }
-
-      // 2.2) fallback: última SAÍDA daquele telefone com mensagem_id_externo ainda NULL
-      if (!row && para) {
-        const telefone = String(para).replace(/@c\.us$/, '');
-        const sel = await supabase
-          .from('mensagens')
-          .select('id, lead_id')
-          .eq('direcao', 'saida')
-          .eq('telefone_cliente', telefone)
-          .is('mensagem_id_externo', null)
           .order('criado_em', { ascending: false })
           .limit(1);
 
-        const candidato = sel.data?.[0];
-        if (candidato) {
-          const { data: up2, error: er2 } = await supabase
+        let alvo = rows1 && rows1[0];
+
+        // 2) fallback: pega a ÚLTIMA mensagem de saída para esse telefone_cliente
+        if (!alvo) {
+          const tel = String(para || '').replace(/\D/g, '');
+          console.log("🧪[BACK] fallback por telefone_cliente:", tel);
+
+          const { data: rowsTel, error: errTel } = await supabase
             .from('mensagens')
-            .update({ mensagem_id_externo: mensagemId || null, ack })
-            .eq('id', candidato.id)
-            .select('id, lead_id')
+            .select('id, lead_id, ack')
+            .eq('telefone_cliente', tel)
+            .eq('direcao', 'saida')
+            .order('criado_em', { ascending: false })
             .limit(1);
 
-          if (er2) { console.error('❌ UPDATE fallback por telefone:', er2.message); return; }
-          row = up2?.[0];
+          if (!errTel && rowsTel && rowsTel[0]) {
+            alvo = rowsTel[0];
+            console.log("🧪[BACK] fallback HIT id:", alvo.id);
+          }
         }
-      }
 
-      if (!row) {
-        console.warn('⚠️ ACK recebido mas nenhuma linha encontrada para atualizar.');
+        if (!alvo) {
+          console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
+          return;
+        }
+
+        const novoAck = normalizeAck(alvo.ack, ack);
+        const { data: upd2, error: updErr2 } = await supabase
+          .from('mensagens')
+          .update({ ack: novoAck })
+          .eq('id', alvo.id)
+          .select('id, lead_id, ack')
+          .single();
+
+        if (updErr2) {
+          console.error("❌ UPDATE ack falhou:", updErr2.message);
+          return;
+        }
+
+        console.log("🧪[BACK] UPDATE ack ok:", upd2);
+
+        // notifica o front (casa por id local OU por mensagem_id_externo)
+        io.to(`lead-${upd2.lead_id}`).emit('statusEnvio', {
+          mensagemIdLocal: upd2.id,     // ← front pode casar por este
+          mensagemId,                   // ← ou por este
+          ack: upd2.ack,
+          tipo: tipo || 'texto',
+          para
+        });
+        console.log("🧪[BACK] EMIT (mensagemId) →", { sala: `lead-${upd2.lead_id}`, idLocal: upd2.id, ack: upd2.ack });
         return;
       }
 
-      // notifica o front para pintar o tick
-      io.to(`lead-${row.lead_id}`).emit('statusEnvio', {
-        ok: true,
-        tipo: 'texto',
-        mensagemIdLocal: row.id,
-        ack
-      });
-      console.log('📣 [ACK] emit → statusEnvio (ack=%s) → sala lead-%s', ack, row.lead_id);
+      // Se chegou aqui, não é jobId nem mensagemId válido
+      console.warn("🧪[BACK] statusEnvio ignorado (sem jobId/mensagemId).");
 
     } catch (e) {
       console.error('❌ [statusEnvio] falha ao processar:', e.message);
     }
   });
+
   global.__statusEnvioRegistered = true;
 }
 
