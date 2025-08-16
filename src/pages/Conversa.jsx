@@ -1195,19 +1195,17 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
 
   // 2. Toda vez que mudar o leadId, muda a sala e listeners
   useEffect(() => {
-    console.log("🟢 useEffect disparou com leadId:", leadId);
     const socket = socketRef.current;
-    console.log("🔌 socketRef.current:", socket);
-
-        if (!socket || !leadId)
-    console.warn("⚠️ socket ainda não está pronto");
-    return;
-    
+    console.log("🟢 [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
   
-    // 👋 compat: alguns backends esperam "sala", outros "lead_id"
-    console.log("🚪 Entrando na sala FronT:", `lead-${leadId}`);
-
-    socket.emit("entrarNaSala", { sala: `lead-${leadId}`, lead_id: leadId });
+    if (!socket || !leadId) {
+      console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
+      return;
+    }
+     
+    
+    console.log("🚪 [Front] Emitindo entrarNaSala para lead:", leadId);
+    socket.emit("entrarNaSala", { lead_id: leadId });
 
 
     // util: nunca regredir o ack (1->2->3->4)
