@@ -1200,7 +1200,8 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   
     // 👋 compat: alguns backends esperam "sala", outros "lead_id"
     
-    socket.emit("entrarNaSala", { lead_id: leadId });
+    socket.emit("entrarNaSala", { sala: `lead-${leadId}`, lead_id: leadId });
+
 
     // util: nunca regredir o ack (1->2->3->4)
   const normalizeAck = (prevAck = 0, nextAck = 0) => {
