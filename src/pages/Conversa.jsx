@@ -1208,14 +1208,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     socket.emit("entrarNaSala", { lead_id: leadId });
 
 
-    // util: nunca regredir o ack (1->2->3->4)
-  const normalizeAck = (prevAck = 0, nextAck = 0) => {
-    const p = Number(prevAck ?? 0);
-    const n = Number(nextAck ?? 0);
-    // -1 = erro tem prioridade, senão é monotônico
-    if (n === -1) return -1;
-    return Math.max(p, n);
-  };
+    
 
   const handleAckMensagem = ({ mensagemIdLocal, ack }) => {
     if (!mensagemIdLocal) return;
