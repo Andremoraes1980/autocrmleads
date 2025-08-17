@@ -1228,13 +1228,67 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     );
   };
   
-    // ---- mensagens recebidas (entrada) ----
-    const handleMensagemRecebida = (payload) => {
-      const { lead_id: recebidaDoSocket, mensagem } = payload || {};
-      if (recebidaDoSocket === leadId && mensagem) {
-        setMensagens((prev) => [...prev, mensagem]);
+    // 🔧 helper: ACK monotônico e upsert por id
+const normalizeAck = (prevAck = 0, nextAck = 0) => {
+  const p = Number(prevAck ?? 0);
+  const n = Number(nextAck ?? 0);
+  if (n === -1) return -1;            // erro tem prioridade
+  return Math.max(p, n);               // 1→2→3→4 nunca regride
+};
+
+// Upsert mantendo ACK monotônico e campos já conhecidos
+function mergeMensagens(prev, incomingListOrOne) {
+  const list = Array.isArray(incomingListOrOne)
+    ? incomingListOrOne
+    : [incomingListOrOne].filter(Boolean);
+
+  if (!list.length) return prev;
+
+  const byId = new Map(prev.map(m => [m.id, m]));
+  for (const inc of list) {
+    const cur = byId.get(inc.id);
+    if (!cur) {
+      // mensagem nova: entra como veio
+      byId.set(inc.id, inc);
+      continue;
+    }
+    // já existe: preserva e promove ACK; mescla campos novos
+    const ack = normalizeAck(cur.ack, inc.ack);
+    byId.set(inc.id, { ...cur, ...inc, ack });
+  }
+  return Array.from(byId.values());
+}
+
+// ---- mensagens recebidas (entrada) ----
+const handleMensagemRecebida = (payload) => {
+  const { lead_id: recebidaDoSocket, mensagem } = payload || {};
+  if (recebidaDoSocket !== leadId || !mensagem) return;
+  setMensagens(prev => mergeMensagens(prev, mensagem));
+};
+
+// ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
+const handleStatusEnvio = (evt = {}) => {
+  const { mensagemIdLocal, mensagemId, ack } = evt;
+
+  setMensagens(prev => {
+    // Se veio id local, subimos ACK desse id
+    if (mensagemIdLocal) {
+      const alvo = prev.find(m => m.id === mensagemIdLocal);
+      if (alvo) {
+        return mergeMensagens(prev, { ...alvo, ack });
       }
-    };
+    }
+    // Se veio id externo, casamos por mensagem_id_externo
+    if (mensagemId) {
+      const alvo = prev.find(m => m.mensagem_id_externo === mensagemId);
+      if (alvo) {
+        return mergeMensagens(prev, { ...alvo, ack });
+      }
+    }
+    return prev; // nada para promover
+  });
+};
+
   
     // ---- áudio reenviado (marcar badge verde no card) ----
     const handleAudioReenviado = ({ mensagemId }) => {
@@ -1252,25 +1306,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     };
   
      
-   // ✅ NOVO: atualiza ack (✓, ✓✓, ✓✓ azul)
-   const handleStatusEnvio = (evt = {}) => {
-    console.log("[Front] statusEnvio recebido:", evt);
-    const { mensagemIdLocal, mensagemId, ack } = evt;
-
-    setMensagens((prev) =>
-      prev.map((m) => {
-        // casa por id local salvo ao inserir
-        if (mensagemIdLocal && m.id === mensagemIdLocal) {
-          return { ...m, ack: normalizeAck(m.ack, ack) };
-        }
-        // ou casa por id externo do WhatsApp
-        if (mensagemId && m.mensagem_id_externo === mensagemId) {
-          return { ...m, ack: normalizeAck(m.ack, ack) };
-        }
-        return m;
-      })
-    );
-  };
+   
   
     // limpa duplicatas e registra handlers
     socket.off("mensagemRecebida");
