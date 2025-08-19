@@ -1281,24 +1281,21 @@ const handleMensagemRecebida = (payload) => {
 const handleStatusEnvio = (evt = {}) => {
   const { mensagemIdLocal, mensagemId, ack } = evt;
 
-  setMensagens(prev => {
-    // Se veio id local, subimos ACK desse id
-    if (mensagemIdLocal) {
-      const alvo = prev.find(m => m.id === mensagemIdLocal);
-      if (alvo) {
-        return mergeMensagens(prev, { ...alvo, ack });
+  setMensagens((prev) =>
+    prev.map((m) => {
+      // Casa por id local
+      if (mensagemIdLocal && m.id === mensagemIdLocal) {
+        return { ...m, ack: normalizeAck(m.ack, ack) };
       }
-    }
-    // Se veio id externo, casamos por mensagem_id_externo
-    if (mensagemId) {
-      const alvo = prev.find(m => m.mensagem_id_externo === mensagemId);
-      if (alvo) {
-        return mergeMensagens(prev, { ...alvo, ack });
+      // Casa por id externo (WhatsApp)
+      if (mensagemId && m.mensagem_id_externo === mensagemId) {
+        return { ...m, ack: normalizeAck(m.ack, ack) };
       }
-    }
-    return prev; // nada para promover
-  });
+      return m;
+    })
+  );
 };
+
 
   
     // ---- áudio reenviado (marcar badge verde no card) ----
