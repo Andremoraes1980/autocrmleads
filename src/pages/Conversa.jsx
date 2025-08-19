@@ -837,8 +837,17 @@ const fetchMensagens = async () => {
      // (opcional) ordenar por criado_em
      normalizadas.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
 
-     setMensagens(normalizadas);
+     // monta o mapa de áudios reenviados
+    const iniciais = {};
+    normalizadas.forEach((m) => {
+      if (m.audio_reenviado) {
+        iniciais[m.id] = true;
+      }
+    });
 
+    setMensagens(normalizadas);
+    setEnviadosIphone(iniciais);
+     
 
      console.log("🟢 Mensagens (normalizadas):", normalizadas);
     } catch (err) {
@@ -1469,21 +1478,8 @@ useEffect(() => {
 
   useEffect(() => {
     if (!lead) return;
-    async function carregarMensagens() {
-      const resposta = await fetch(`${import.meta.env.VITE_API_URL}/api/mensagens/${lead.id}`);
-      const msgs = await resposta.json();
-      console.log('[DEBUG] msgs recebidas:', msgs.map(m => ({ id: m.id, audio_reenviado: m.audio_reenviado, url: m.audio_reenviado_url })));
-      // monta um objeto { [msg.id]: true } para cada msg com audio_reenviado === true
-      const iniciais = {};
-      msgs.forEach(m => {
-        if (m.audio_reenviado) {
-          iniciais[m.id] = true;
-        }
-      });
-      setEnviadosIphone(iniciais);
-      setMensagens(msgs); // supondo que você faça algo assim
-    }
-    carregarMensagens();
+    
+    fetchMensagens();
   }, [lead]);
   
   
