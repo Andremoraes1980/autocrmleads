@@ -1255,9 +1255,27 @@ function mergeMensagens(prev, incomingListOrOne) {
 // ---- mensagens recebidas (entrada) ----
 const handleMensagemRecebida = (payload) => {
   const { lead_id: recebidaDoSocket, mensagem } = payload || {};
-  if (recebidaDoSocket !== leadId || !mensagem) return;
-  setMensagens(prev => mergeMensagens(prev, mensagem));
-};
+  if (recebidaDoSocket === leadId && mensagem) {
+    setMensagens((prev) => {
+      // Verifica se já existe no estado (id local ou id externo)
+      const jaExiste = prev.find(
+        (m) => m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
+      );
+
+      if (jaExiste) {
+        // Faz merge, preservando campos já existentes como ack
+        return prev.map((m) =>
+          m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
+            ? { ...m, ...mensagem, ack: m.ack ?? mensagem.ack }
+            : m
+        );
+      }
+       // Se for nova, adiciona ao array
+       return [...prev, mensagem];
+
+      });
+    }
+  };
 
 // ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
 const handleStatusEnvio = (evt = {}) => {
