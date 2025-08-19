@@ -2863,26 +2863,63 @@ function TimelineVertical({ eventos, usuarios }) {
 
 // --- ticks de envio (usado no rodapé do balão) ---
 const stylesTick = {
-  ok:   { marginLeft: 6, fontSize: 12, color: '#2e7d32' }, // verde
-  err:  { marginLeft: 6, fontSize: 12, color: '#c62828' }, // vermelho
-  pend: { marginLeft: 6, fontSize: 12, color: '#9e9e9e' }, // cinza
+  ok:   { marginLeft: 6, fontSize: 12, color: '#2e7d32' }, // não usamos mais aqui, mas pode manter
+  err:  { marginLeft: 6, fontSize: 12, color: '#c62828' },
+  pend: { marginLeft: 6, fontSize: 12, color: '#9e9e9e' },
 };
 
 const renderTick = (m) => {
-  // mostra tick só para mensagens SAÍDAS (enviadas pelo painel)
+  // mostra ticks apenas para mensagens de saída (enviadas pelo painel)
   const isSaida = m?.direcao === 'saida' || !!m?.remetente_id;
   if (!isSaida) return null;
 
-  // prioridade: ack (1=ok, -1=erro). Se vier mensagem_id_externo usamos como "ok".
-  if (m?.ack === 1 || m?.mensagem_id_externo) {
-    return <span title="Enviada" style={stylesTick.ok}>✓</span>;
+  const ack = Number(m?.ack ?? 0);
+  const hasExternalId = !!m?.mensagem_id_externo;
+
+  // ✓✓ azul — lida (3 ou 4)
+  if (ack >= 3) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="#19b2fa" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+           title="Lida">
+        <polyline points="20 6 11 15 7 11" />
+        <polyline points="17 6 8 15 4 11" />
+      </svg>
+    );
   }
-  if (m?.ack === -1) {
+
+  // ✓✓ cinza — entregue (2)
+  if (ack >= 2) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+           title="Entregue">
+        <polyline points="20 6 11 15 7 11" />
+        <polyline points="17 6 8 15 4 11" />
+      </svg>
+    );
+  }
+
+  // ✓ cinza — enviada (1) OU fallback se já existe id externo (mesmo com ack 0)
+  if (ack >= 1 || hasExternalId) {
+    return (
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+           stroke="#9e9e9e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"
+           title="Enviada">
+        <polyline points="20 6 9 17 4 12" />
+      </svg>
+    );
+  }
+
+  // ⚠️ erro
+  if (ack === -1) {
     return <span title="Erro ao enviar" style={stylesTick.err}>⚠️</span>;
   }
-  // pendente (quando acabou de apertar enviar e ainda não chegou o statusEnvio)
+
+  // … pendente
   return <span title="Enviando…" style={stylesTick.pend}>…</span>;
 };
+
 
 
 
