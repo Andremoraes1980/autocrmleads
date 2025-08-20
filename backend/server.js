@@ -873,23 +873,26 @@ app.get('/api/mensagens/:leadId', async (req, res) => {
     const { data, error } = await supabase
       .from('mensagens')
       .select(`
-        id,
-        lead_id,
-        mensagem,
-        canal,
-        criado_em,
-        remetente_id,
-        remetente,
-        remetente_nome,
-        tipo,
-        arquivos,
-        direcao,
-        telefone_cliente,
-        lida,
-        audio_reenviado,
-        audio_reenviado_em,
-        audio_reenviado_url
-      `)
+  id,
+  lead_id,
+  mensagem,
+  canal,
+  criado_em,
+  remetente_id,
+  remetente,
+  remetente_nome,
+  tipo,
+  arquivos,
+  direcao,
+  telefone_cliente,
+  lida,
+  ack,
+  mensagem_id_externo,
+  audio_reenviado,
+  audio_reenviado_em,
+  audio_reenviado_url
+`)
+
       .eq('lead_id', leadId)
       .order('criado_em', { ascending: true });
 
