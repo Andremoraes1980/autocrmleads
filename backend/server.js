@@ -134,9 +134,10 @@ if (!alvo) {
   let alvoRow = null;
   let respA = await supabase
     .from('mensagens')
-    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em, criado_em')
+    .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em')
     .eq('direcao', 'saida')
     .is('mensagem_id_externo', null)
+    .gte('ack', 1) 
     .in('telefone_cliente', candidatos)
     .order('criado_em', { ascending: false })
     .limit(1);
@@ -147,18 +148,21 @@ if (!alvo) {
     alvoRow = respA.data?.[0] || null;
   }
 
-  // Tentativa B — formatos variados (telefone com máscara), usa ILIKE
+  // Tentativa B — formatos variados (telefone com máscara), usa ILIKE por sufixo
   if (!alvoRow) {
-    const pattern1 = `%${digits}%`;
-    const pattern2 = `%${digitsNo55}%`;
-    console.log("🧪[BACK] fallback ILIKE:", { pattern1, pattern2 });
+    const end11 = digits.slice(-11); // últimos 11 dígitos (DDD + número)
+    // ⚠️ Importante: sem espaços na string do .or
+    const orExpr = `telefone_cliente.ilike.%${digits}%,telefone_cliente.ilike.%${digitsNo55}%,telefone_cliente.ilike.%${end11}`;
+
+    console.log("🧪[BACK] fallback ILIKE:", { orExpr });
 
     const respB = await supabase
       .from('mensagens')
-      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em, criado_em')
+      .select('id, lead_id, ack, mensagem_id_externo, direcao, telefone_cliente, criado_em')
       .eq('direcao', 'saida')
       .is('mensagem_id_externo', null)
-      .or(`telefone_cliente.ilike.${pattern1},telefone_cliente.ilike.${pattern2}`)
+      .gte('ack', 1) 
+      .or(orExpr)
       .order('criado_em', { ascending: false })
       .limit(1);
 
@@ -176,6 +180,7 @@ if (!alvo) {
     console.warn("🧪[BACK] NADA CASOU → não achei linha para aplicar ACK");
   }
 }
+
 
 
 
@@ -269,6 +274,11 @@ const handleBridgeStatusEnvio = (evt) => {
   }
 };
 
+if (ultimoQrCodeDataUrlRef.value) {
+  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+}
+
+
 socket.off?.('statusEnvio', handleBridgeStatusEnvio); // precisa do listener aqui
 socket.on('statusEnvio', handleBridgeStatusEnvio);
 
@@ -285,14 +295,14 @@ socket.on('statusEnvio', handleBridgeStatusEnvio);
 
 
 
-// Listeners já modularizados corretamente:
+
 
 
 
 
 //  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
 // Arquivo: backend/listeners/provider/receberQrCode.js
-receberQrCode(socketProvider, io);
+receberQrCode(socketProvider, io, ultimoQrCodeDataUrlRef);
 
 
 
