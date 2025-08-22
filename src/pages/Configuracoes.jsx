@@ -1,5 +1,5 @@
 // src/pages/Configuracoes.jsx
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import Layout from "../components/Layout";
 import styles from "./Configuracoes.module.css";
 import { supabase } from "../lib/supabaseClient"; 
@@ -34,39 +34,75 @@ const [modalNovoTemplateOpen, setModalNovoTemplateOpen] = React.useState(false);
 const [mensagensPorAutomacao, setMensagensPorAutomacao] = useState({});
 const [mensagemParaEditar, setMensagemParaEditar] = useState(null);
 const [templates, setTemplates] = useState([]);
-const [qrCode, setQrCode] = useState(null);
 const [isModalOpen, setModalOpen] = useState(false);
+const [qrUrl, setQrUrl] = useState(null);
+const [waConnected, setWaConnected] = useState(false);
+const [isAskingQR, setIsAskingQR] = useState(false);
 
- // Quando estiver na aba "integracoes", conectamos ao socket e ouvimos o evento "qrCode"
-  useEffect(() => {
-     console.log("📝 useEffect WhatsApp Modal, isModalOpen =", isModalOpen);
-     if (!isModalOpen) return;
-  
-     console.log("🔌 Conectando socket em:", import.meta.env.VITE_SOCKET_BACKEND_URL);
-     const socket = io(
-       import.meta.env.VITE_SOCKET_BACKEND_URL,
-       { transports: ["websocket"], secure: true }
-     );
-  
-     socket.on("connect", () => {
-       console.log("✅ Socket conectado, id:", socket.id);
-       console.log("🚀 Solicitando QR Code ao provider");
-       socket.emit("gerarQRCode");
-     });
-     socket.on("connect_error", err => {
-       console.error("❌ Erro de conexão socket:", err);
-     });
-     socket.on("qrCode", ({ qr }) => {
-       console.log("📥 Evento qrCode recebido:", qr);
-       setQrCode(qr);
-     });
-  
-     return () => {
-       console.log("⏹️ Desconectando socket e limpando QR");
-       socket.disconnect();
-       setQrCode(null);
-     };
-   }, [isModalOpen]);
+
+const socketRef = useRef(null);
+
+ // Conecta ao socket apenas quando a aba "integracoes" estiver ativa.
+// Mantém uma única conexão para podermos mostrar o status mesmo com o modal fechado.
+useEffect(() => {
+  if (abaAtiva !== "integracoes") return;
+
+  const socket = io(import.meta.env.VITE_SOCKET_BACKEND_URL, {
+    transports: ["websocket"],
+    secure: true,
+  });
+  socketRef.current = socket;
+
+  const handleQr = (payload = {}) => {
+    const url = payload?.qr || null;  // dataURL do QR
+    setQrUrl(url);
+    setWaConnected(false);            // se chegou QR, ainda não está logado
+  };
+
+  const handleWaStatus = (s = {}) => {
+    const ok = !!s.connected;
+    setWaConnected(ok);
+    if (ok) setQrUrl(null);           // conectado → some QR
+  };
+
+  const handleReady = () => { setWaConnected(true); setQrUrl(null); };
+  const handleDisconnected = () => { setWaConnected(false); };
+
+  socket.on("connect", () => {
+    console.log("✅ Socket conectado, id:", socket.id);
+  });
+  socket.on("connect_error", (err) => {
+    console.error("❌ Erro de conexão socket:", err);
+  });
+
+  // registra sem duplicar
+  socket.off("qrCode", handleQr).on("qrCode", handleQr);
+  socket.off("waStatus", handleWaStatus).on("waStatus", handleWaStatus);
+  socket.off("whatsappReady", handleReady).on("whatsappReady", handleReady);
+  socket.off("whatsappDisconnected", handleDisconnected).on("whatsappDisconnected", handleDisconnected);
+
+  return () => {
+    console.log("⏹️ Desconectando socket (saindo da aba Integrações)");
+    try { socket.disconnect(); } catch {}
+    socketRef.current = null;
+  };
+}, [abaAtiva]);
+
+// Quando o modal abrir, pede o QR ao backend.
+// Usa a conexão já existente (socketRef).
+useEffect(() => {
+  if (!isModalOpen) return;
+  const socket = socketRef.current;
+  if (!socket) return;
+
+  setIsAskingQR(true);
+  // compat: dois nomes possíveis no backend
+  socket.emit("solicitarQr");
+  socket.emit("getQrCode");
+  const t = setTimeout(() => setIsAskingQR(false), 800);
+  return () => clearTimeout(t);
+}, [isModalOpen]);
+
 
 
 
@@ -424,7 +460,7 @@ const renderConteudo = () => {
   <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
     <img src="/images/whatsapp-icon.svg" alt="WhatsApp" className="w-16 h-16 mb-4" />
     <h3 className="text-xl font-semibold text-white mb-2">WhatsApp</h3>
-    {qrCode ? (
+    {waConnected ? (
       <button className="px-4 py-2 bg-green-600 rounded text-white" disabled>
         Conectado
       </button>
@@ -453,15 +489,13 @@ const renderConteudo = () => {
         &times;
       </button>
       <h2 className="text-white text-2xl mb-4">Escaneie com o WhatsApp</h2>
-      {qrCode ? (
-  <img
-    src={qrCode.startsWith('data:image') ? qrCode : `data:image/png;base64,${qrCode}`}
-    alt="QR Code"
-    className="mx-auto w-64 h-64 object-contain"
-  />
-) : (
-        <p className="text-white">Aguardando QR Code…</p>
-      )}
+      {waConnected ? (
+   <p className="text-white">✅ WhatsApp conectado. Você já pode fechar.</p>
+ ) : qrUrl ? (
+   <img src={qrUrl} alt="QR Code" className="mx-auto w-64 h-64 object-contain" />
+ ) : (
+   <p className="text-white">{isAskingQR ? "Gerando QR..." : "Aguardando QR..."}</p>
+ )}
     </div>
   </div>
 )}

@@ -242,14 +242,28 @@ if (!global.__statusEnvioRegistered) {
 }
 
 // Fonte B: eventos que chegam via socketBackend (provider → backend pelo io)
-if (!global.__statusEnvioBridgeRegistered) {
-  io.on('connection', (socket) => {
-    socket.off?.('statusEnvio', handleStatusEnvio); // idem: off com a mesma ref
-    socket.on('statusEnvio', handleStatusEnvio);
-  });
-  global.__statusEnvioBridgeRegistered = true;
-}
+//if (!global.__statusEnvioBridgeRegistered) {
+//  io.on('connection', (socket) => {
+//    socket.off?.('statusEnvio', handleStatusEnvio); // idem: off com a mesma ref
+//    socket.on('statusEnvio', handleStatusEnvio);
+//  });
+//  global.__statusEnvioBridgeRegistered = true;
+//}
+
 // --- END: listener statusEnvio único ---
+
+// === BEGIN: WhatsApp status bridge (provider -> fronts) ===
+if (!global.__whatsStatusBridgeRegistered) {
+  // ouça 1x o status vindo do provider
+  socketProvider?.off?.('whatsappStatus');
+  socketProvider?.on?.('whatsappStatus', (st = {}) => {
+    // se conectou, geralmente o QR perde a validade
+    if (st.connected) ultimoQrCodeDataUrlRef.value = null;
+    io.emit('whatsappStatus', st); // repassa p/ todos os clientes web
+  });
+  global.__whatsStatusBridgeRegistered = true;
+}
+// === END: WhatsApp status bridge ===
 
 
 
@@ -263,26 +277,25 @@ io.on('connection', (socket) => {
 
   entrarNaSala(socket, io);
 
-  // 🔁 Ponte para ACKs vindos do provider via socketBackend (canal B)
-const handleBridgeStatusEnvio = (evt) => {
-  try {
-    console.log('🔁 [BACK] Bridge statusEnvio (io→socketProvider):', evt);
-    // (por enquanto mantém o repasse; no próximo passo vamos direcionar ao handler local)
-    socketProvider.emit?.('statusEnvio', evt);
-  } catch (e) {
-    console.error('💥 [BACK] Bridge statusEnvio erro:', e);
+  // define handler no MESMO escopo do off/on
+  const handleBridgeStatusEnvio = (evt = {}) => {
+    try {
+      console.log('🔁 [BACK] Bridge statusEnvio (io→handler local):', evt);
+      // chama o SEU processador central (que já atualiza DB e emite p/ front)
+      handleStatusEnvio(evt);
+    } catch (e) {
+      console.error('💥 [BACK] Bridge statusEnvio erro:', e);
+    }
+  };
+
+  // limpa duplicata usando a MESMA referência
+  socket.off('statusEnvio', handleBridgeStatusEnvio);
+  socket.on('statusEnvio', handleBridgeStatusEnvio);
+
+  // entrega QR em cache ao cliente recém-conectado (se houver)
+  if (ultimoQrCodeDataUrlRef?.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
   }
-};
-
-if (ultimoQrCodeDataUrlRef.value) {
-  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-}
-
-
-socket.off?.('statusEnvio', handleBridgeStatusEnvio); // precisa do listener aqui
-socket.on('statusEnvio', handleBridgeStatusEnvio);
-
-
 
   // ⬇️ PROVIDER → BACKEND: recebe o evento que o provider está emitindo
   receberMensagem(socket, io);
@@ -300,8 +313,8 @@ socket.on('statusEnvio', handleBridgeStatusEnvio);
 
 
 
-//  2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
-// Arquivo: backend/listeners/provider/receberQrCode.js
+// 2.RECEBE QR do PROVIDER (fora do io.on('connection')) ---
+// agora passando a ref para cachear o último QR
 receberQrCode(socketProvider, io, ultimoQrCodeDataUrlRef);
 
 
