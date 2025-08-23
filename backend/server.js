@@ -236,10 +236,14 @@ if (!alvo) {
 
 // Fonte A: eventos vindos do provider (socketProvider)
 if (!global.__statusEnvioRegistered) {
-  socketProvider?.off?.('statusEnvio', handleStatusEnvio); // passa a MESMA função no off
-  socketProvider?.on?.('statusEnvio', handleStatusEnvio);
+  if (typeof handleStatusEnvio === 'function' && socketProvider?.off) {
+    socketProvider.off('statusEnvio', handleStatusEnvio); // remove, se já tinha
+  }
+  socketProvider?.on?.('statusEnvio', handleStatusEnvio); // registra (uma vez)
+  console.log('🔗 [BACK] statusEnvio do provider registrado (Fonte A).');
   global.__statusEnvioRegistered = true;
 }
+
 
 // Fonte B: eventos que chegam via socketBackend (provider → backend pelo io)
 //if (!global.__statusEnvioBridgeRegistered) {
@@ -254,16 +258,35 @@ if (!global.__statusEnvioRegistered) {
 
 // === BEGIN: WhatsApp status bridge (provider -> fronts) ===
 if (!global.__whatsStatusBridgeRegistered) {
-  // ouça 1x o status vindo do provider
   socketProvider?.off?.('whatsappStatus');
   socketProvider?.on?.('whatsappStatus', (st = {}) => {
-    // se conectou, geralmente o QR perde a validade
-    if (st.connected) ultimoQrCodeDataUrlRef.value = null;
-    io.emit('whatsappStatus', st); // repassa p/ todos os clientes web
+    const connected = !!st.connected;
+
+    // mantém um "snapshot" global pro handshake inicial
+    global.__waReady = connected;
+
+    // conectado → QR deixa de ser necessário
+    if (connected) {
+      ultimoQrCodeDataUrlRef.value = null;
+    }
+
+    // 🔔 novo nome canônico que o front usa
+    io.emit('waStatus', { connected });
+
+    // 🔁 compat com clientes antigos (se ainda existirem)
+    io.emit('whatsappStatus', { connected });
+
+    // (opcional) compat de eventos sem payload:
+    if (connected) {
+      io.emit('whatsappReady');
+    } else {
+      io.emit('whatsappDisconnected', { reason: st.reason || null });
+    }
   });
   global.__whatsStatusBridgeRegistered = true;
 }
 // === END: WhatsApp status bridge ===
+
 
 
 
