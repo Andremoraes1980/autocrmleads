@@ -270,12 +270,38 @@ if (!global.__whatsStatusBridgeRegistered) {
 global.ultimoQrCodeDataUrl = ultimoQrCodeDataUrlRef; // (opcional) caso queira acessar em outros arquivos
 socketFrontend(io, socketProvider, ultimoQrCodeDataUrlRef);
 
-
+// io Connection começo
 
 io.on('connection', (socket) => {
   console.log('🟢 [IO] Cliente conectado:', socket.id);
 
   entrarNaSala(socket, io);
+
+  // 1) Envia QR já salvo (se houver) para quem acabou de conectar
+if (ultimoQrCodeDataUrlRef?.value) {
+  socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+}
+
+// 2) Envia status atual de conexão do WhatsApp
+socket.emit('waStatus', { connected: !!global.__waReady });
+
+// 3) Atende pedidos explícitos de QR do front
+socket.off('getQrCode').on('getQrCode', () => {
+  if (ultimoQrCodeDataUrlRef?.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+  } else {
+    // pede pro provider gerar/reenviar
+    socketProvider.emit?.('gerarQRCode');
+  }
+});
+socket.off('solicitarQr').on('solicitarQr', () => {
+  if (ultimoQrCodeDataUrlRef?.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+  } else {
+    socketProvider.emit?.('gerarQRCode');
+  }
+});
+
 
   // define handler no MESMO escopo do off/on
   const handleBridgeStatusEnvio = (evt = {}) => {
@@ -305,6 +331,8 @@ io.on('connection', (socket) => {
   });
 
 });
+
+// io Connection FIM
 
 
 

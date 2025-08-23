@@ -17,10 +17,17 @@ module.exports = function receberQrCode(socketProvider, io, ultimoQrRef = { valu
       }
 
       const url = await QRCode.toDataURL(qrString);
-      ultimoQrRef.value = url;                     // <— cache do último QR
-      console.log('✅ DataURL do QR gerado (cache atualizado).');
 
-      io.emit('qrCode', { qr: url });              // broadcast pra quem já está conectado
+// evita rebroadcast se o QR não mudou
+if (ultimoQrRef.value === url) {
+  console.log('ℹ️ QR idêntico ao anterior — não reenviando.');
+  return;
+}
+
+ultimoQrRef.value = url;                     // atualiza o cache
+io.emit('qrCode', { qr: url });              // envia aos frontends conectados
+console.log('✅ DataURL do QR gerado e distribuído (len:', url.length, ')');
+
     } catch (err) {
       console.error('❌ Erro ao processar QR:', err?.message);
     }
