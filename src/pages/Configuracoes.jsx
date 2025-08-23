@@ -77,6 +77,7 @@ useEffect(() => {
 
   // registra sem duplicar
   socket.off("qrCode", handleQr).on("qrCode", handleQr);
+  socket.off("whatsappStatus", handleWaStatus).on("whatsappStatus", handleWaStatus); // <-- novo
   socket.off("waStatus", handleWaStatus).on("waStatus", handleWaStatus);
   socket.off("whatsappReady", handleReady).on("whatsappReady", handleReady);
   socket.off("whatsappDisconnected", handleDisconnected).on("whatsappDisconnected", handleDisconnected);

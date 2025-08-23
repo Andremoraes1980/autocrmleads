@@ -309,21 +309,26 @@ if (ultimoQrCodeDataUrlRef?.value) {
 socket.emit('waStatus', { connected: !!global.__waReady });
 
 // 3) Atende pedidos explícitos de QR do front
-socket.off('getQrCode').on('getQrCode', () => {
-  if (ultimoQrCodeDataUrlRef?.value) {
-    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
-  } else {
-    // pede pro provider gerar/reenviar
-    socketProvider.emit?.('gerarQRCode');
-  }
-});
-socket.off('solicitarQr').on('solicitarQr', () => {
+socket.removeAllListeners('getQrCode');
+const handleGetQrCode = () => {
   if (ultimoQrCodeDataUrlRef?.value) {
     socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
   } else {
     socketProvider.emit?.('gerarQRCode');
   }
-});
+};
+socket.on('getQrCode', handleGetQrCode);
+
+socket.removeAllListeners('solicitarQr');
+const handleSolicitarQr = () => {
+  if (ultimoQrCodeDataUrlRef?.value) {
+    socket.emit('qrCode', { qr: ultimoQrCodeDataUrlRef.value });
+  } else {
+    socketProvider.emit?.('gerarQRCode');
+  }
+};
+socket.on('solicitarQr', handleSolicitarQr);
+
 
 
   // define handler no MESMO escopo do off/on
