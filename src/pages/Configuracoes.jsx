@@ -95,6 +95,7 @@ useEffect(() => {
   if (!isModalOpen) return;
   const socket = socketRef.current;
   if (!socket) return;
+  if (waConnected) return; // já conectado: não há QR para mostrar
 
   setIsAskingQR(true);
   // compat: dois nomes possíveis no backend
@@ -102,7 +103,8 @@ useEffect(() => {
   socket.emit("getQrCode");
   const t = setTimeout(() => setIsAskingQR(false), 800);
   return () => clearTimeout(t);
-}, [isModalOpen]);
+}, [isModalOpen, waConnected]);
+
 
 
 
