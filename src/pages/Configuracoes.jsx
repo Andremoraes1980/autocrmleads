@@ -36,8 +36,32 @@ const [mensagemParaEditar, setMensagemParaEditar] = useState(null);
 const [templates, setTemplates] = useState([]);
 const [isModalOpen, setModalOpen] = useState(false);
 const [qrUrl, setQrUrl] = useState(null);
-const [waConnected, setWaConnected] = useState(false);
 const [isAskingQR, setIsAskingQR] = useState(false);
+const [waStatus, setWaStatus] = useState({ connected: false, reason: null });
+
+
+// Badge de status do WhatsApp (conectado/desconectado)
+const StatusBadge = ({ connected, reason }) => (
+  <span
+    title={reason ? `Motivo: ${reason}` : undefined}
+    className={
+      connected
+        ? "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-600/20 text-green-300 border border-green-600/40"
+        : "inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-600/20 text-red-300 border border-red-600/40"
+    }
+  >
+    <span
+      className={
+        connected
+          ? "inline-block w-2 h-2 rounded-full mr-2 bg-green-400 animate-pulse"
+          : "inline-block w-2 h-2 rounded-full mr-2 bg-red-400"
+      }
+    />
+    {connected ? "Conectado" : "Desconectado"}
+  </span>
+);
+
+
 
 
 const socketRef = useRef(null);
@@ -61,12 +85,12 @@ useEffect(() => {
 
   const handleWaStatus = (s = {}) => {
     const ok = !!s.connected;
-    setWaConnected(ok);
-    if (ok) setQrUrl(null);           // conectado → some QR
+    setWaStatus({ connected: ok, reason: s.reason ?? null }); // estado unificado
+    if (ok) setQrUrl(null);                                   // conectado → oculta QR
   };
-
-  const handleReady = () => { setWaConnected(true); setQrUrl(null); };
-  const handleDisconnected = () => { setWaConnected(false); };
+  
+  
+  
 
   socket.on("connect", () => {
     console.log("✅ Socket conectado, id:", socket.id);
@@ -75,12 +99,14 @@ useEffect(() => {
     console.error("❌ Erro de conexão socket:", err);
   });
 
-  // registra sem duplicar
   socket.off("qrCode", handleQr).on("qrCode", handleQr);
-  socket.off("whatsappStatus", handleWaStatus).on("whatsappStatus", handleWaStatus); // <-- novo
-  socket.off("waStatus", handleWaStatus).on("waStatus", handleWaStatus);
-  socket.off("whatsappReady", handleReady).on("whatsappReady", handleReady);
-  socket.off("whatsappDisconnected", handleDisconnected).on("whatsappDisconnected", handleDisconnected);
+
+// prioridade para o nome novo
+socket.off("waStatus", handleWaStatus).on("waStatus", handleWaStatus);
+
+// ✅ pede snapshot imediato ao backend
+socket.emit("pedirStatus");
+
 
   return () => {
     console.log("⏹️ Desconectando socket (saindo da aba Integrações)");
@@ -95,15 +121,14 @@ useEffect(() => {
   if (!isModalOpen) return;
   const socket = socketRef.current;
   if (!socket) return;
-  if (waConnected) return; // já conectado: não há QR para mostrar
+  if (waStatus.connected) return; // já conectado: não há QR para mostrar
 
   setIsAskingQR(true);
-  // compat: dois nomes possíveis no backend
-  socket.emit("solicitarQr");
-  socket.emit("getQrCode");
+  socket.emit("getQrCode"); // unificado (remove 'solicitarQr')
   const t = setTimeout(() => setIsAskingQR(false), 800);
   return () => clearTimeout(t);
-}, [isModalOpen, waConnected]);
+}, [isModalOpen, waStatus.connected]);
+
 
 
 
@@ -461,21 +486,29 @@ const renderConteudo = () => {
           <div className="grid grid-cols-3 gap-6">
   {/* Card WhatsApp */}
   <div className="bg-gray-800 rounded-lg p-6 flex flex-col items-center">
-    <img src="/images/whatsapp-icon.svg" alt="WhatsApp" className="w-16 h-16 mb-4" />
-    <h3 className="text-xl font-semibold text-white mb-2">WhatsApp</h3>
-    {waConnected ? (
-      <button className="px-4 py-2 bg-green-600 rounded text-white" disabled>
-        Conectado
-      </button>
-    ) : (
-      <button
-        onClick={() => setModalOpen(true)}
-        className="px-4 py-2 bg-blue-600 rounded text-white hover:bg-blue-700"
-      >
-        Conectar
-      </button>
-    )}
+  <img src="/images/whatsapp-icon.svg" alt="WhatsApp" className="w-16 h-16 mb-3" />
+  <h3 className="text-xl font-semibold text-white mb-3">WhatsApp</h3>
+
+  {/* Badge de status */}
+  <div className="mb-4">
+    <StatusBadge connected={waStatus.connected} reason={waStatus.reason} />
   </div>
+
+  {/* Ação */}
+  {waStatus.connected ? (
+    <button className="px-4 py-2 bg-green-600 rounded text-white opacity-60 cursor-not-allowed" disabled>
+      Conectado
+    </button>
+  ) : (
+    <button
+      onClick={() => setModalOpen(true)}
+      className="px-4 py-2 bg-blue-600 rounded text-white hover:bg-blue-700"
+    >
+      Conectar
+    </button>
+  )}
+</div>
+
 
   {/* Aqui você mantém os outros cards (OLX, Webmotors, Mercado Livre, etc.) */}
 </div>
@@ -492,13 +525,14 @@ const renderConteudo = () => {
         &times;
       </button>
       <h2 className="text-white text-2xl mb-4">Escaneie com o WhatsApp</h2>
-      {waConnected ? (
-   <p className="text-white">✅ WhatsApp conectado. Você já pode fechar.</p>
- ) : qrUrl ? (
-   <img src={qrUrl} alt="QR Code" className="mx-auto w-64 h-64 object-contain" />
- ) : (
-   <p className="text-white">{isAskingQR ? "Gerando QR..." : "Aguardando QR..."}</p>
- )}
+      {waStatus.connected ? (
+  <p className="text-white">✅ WhatsApp conectado. Você já pode fechar.</p>
+) : qrUrl ? (
+  <img src={qrUrl} alt="QR Code" className="mx-auto w-64 h-64 object-contain" />
+) : (
+  <p className="text-white">{isAskingQR ? "Gerando QR..." : "Aguardando QR..."}</p>
+)}
+
     </div>
   </div>
 )}
