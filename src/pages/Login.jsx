@@ -9,14 +9,7 @@ export default function Login() {
   const [erro, setErro] = useState(null);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const testarSupabase = async () => {
-      const { data, error } = await supabase.from("usuarios").select("*").limit(1);
-      console.log("DADOS:", data);
-      console.log("ERRO:", error);
-    };
-    testarSupabase();
-  }, []);
+  
 
   const handleLogin = async (e) => {
     e.preventDefault();
