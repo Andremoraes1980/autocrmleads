@@ -208,27 +208,64 @@ export default function Home() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   
-  useEffect(() => {
-    const verificarUsuario = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return;
-  
-      const { data: usuarioDB } = await supabase
-  .from("usuarios")
-  .select("nome, tipo, revenda_id") // <-- traga também o revenda_id
-  .eq("id", user.id)
-  .single();
+  // ✅ Sessão robusta: monta usuarioAtual somente quando o auth estiver pronto
+useEffect(() => {
+  let unsub = null;
 
-setUsuarioAtual({
-  ...user,
-  nome: usuarioDB?.nome || null,
-  tipo: usuarioDB?.tipo || null,
-  revenda_id: usuarioDB?.revenda_id || null, // <-- ESSENCIAL!
-});
+  const bootstrap = async () => {
+    const { data: { session } } = await supabase.auth.getSession();
 
+    const applySession = async (sess) => {
+      if (!sess?.user) {
+        console.warn('[Auth] sessão ausente; aguardando login');
+        setUsuarioAtual(null);
+        return;
+      }
+
+      const user = sess.user;
+
+      const { data: usuarioDB, error } = await supabase
+        .from('usuarios')
+        .select('nome, tipo, revenda_id')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('[Auth] erro ao ler public.usuarios:', error);
+      }
+
+      setUsuarioAtual({
+        id: user.id,
+        email: user.email ?? null,
+        user_metadata: user.user_metadata ?? {},
+        nome: usuarioDB?.nome ?? null,
+        tipo: usuarioDB?.tipo ?? null,
+        revenda_id: usuarioDB?.revenda_id ?? null,
+      });
+
+      console.log('[Auth] usuarioAtual montado:', {
+        id: user.id,
+        tipo: usuarioDB?.tipo ?? null,
+        revenda_id: usuarioDB?.revenda_id ?? null,
+      });
     };
-    verificarUsuario();
-  }, []);
+
+    // aplica sessão atual (se houver)
+    await applySession(session);
+
+    // escuta mudanças de auth (login/logout/refresh)
+    const { data } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      applySession(newSession);
+    });
+    unsub = data?.subscription;
+  };
+
+  bootstrap();
+
+  return () => {
+    unsub?.unsubscribe?.();
+  };
+}, []);
 
   
   
@@ -324,140 +361,101 @@ useEffect(() => {
   }, []);
   
 
-  const buscarLeads = async () => {
-    setLoading(true);
+  // === buscarLeads (versão robusta) ===
+const buscarLeads = async () => {
+  setLoading(true);
 
-    let query = supabase.from("leads").select("*");
-console.log("[buscarLeads] Tipo do usuário:", usuarioAtual?.tipo, "ID:", usuarioAtual?.id);
-
-// Adaptação para multi-loja + superadmin:
-if (usuarioAtual?.tipo === "superadmin") {
-  // superadmin: vê todos os leads de todas as revendas
-  console.log("🔵 [buscarLeads] Usuário superadmin: sem filtro de revenda.");
-} else if (usuarioAtual?.tipo === "admin" || usuarioAtual?.tipo === "gerente") {
-  // admin/gerente: vê todos os leads da sua loja
-  query = query.eq("revenda_id", usuarioAtual.revenda_id);
-  console.log("🟢 [buscarLeads] Usuário admin/gerente: filtrando por revenda_id:", usuarioAtual.revenda_id);
-} else {
-  // vendedor: vê só os leads dele, na sua loja
-  query = query
-    .eq("revenda_id", usuarioAtual.revenda_id)
-    .eq("vendedor_id", usuarioAtual.id);
-  console.log("🟡 [buscarLeads] Usuário vendedor: filtrando por revenda_id e vendedor_id:", usuarioAtual.revenda_id, usuarioAtual.id);
-}
-
-    
-
-console.log("🟦 [buscarLeads] Tipo do usuário:", usuarioAtual?.tipo, "ID:", usuarioAtual?.id);
-
-const { data, error } = await query;
-
-// ...após const { data, error } = await query;
-
-if (!error) {
-  // 1. Para cada lead, busque a última mensagem do cliente no Supabase
-  const leadsProcessados = await Promise.all(data.map(async (lead) => {
-    // Busca a última mensagem de entrada (direcao: "entrada") para esse lead
-    const { data: msgsCliente, error: errorMsg } = await supabase
-      .from("mensagens")
-      .select("*")
-      .eq("lead_id", lead.id)
-      .eq("direcao", "entrada")
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    // Busca a última mensagem de saída (direcao: "saida")
-    const { data: msgsUsuario } = await supabase
-      .from("mensagens")
-      .select("*")
-      .eq("lead_id", lead.id)
-      .eq("direcao", "saida")
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    let tempoUltimaMsgCliente = null;
-    if (msgsCliente && msgsCliente.length > 0) {
-      // Se não existe resposta do usuário depois, considera como pendente
-      const ultimaMsgCliente = msgsCliente[0];
-      const ultimaMsgUsuario = msgsUsuario && msgsUsuario.length > 0 ? msgsUsuario[0] : null;
-      // Só considera o timer ativo se a resposta do usuário for anterior
-      if (!ultimaMsgUsuario || new Date(ultimaMsgCliente.criado_em) > new Date(ultimaMsgUsuario.criado_em)) {
-        tempoUltimaMsgCliente = Math.floor((Date.now() - new Date(ultimaMsgCliente.criado_em)) / 1000); // segundos
-      }
+  try {
+    // 🔒 Guard: nunca consultar sem usuário válido
+    if (!usuarioAtual) {
+      console.warn('[buscarLeads] usuarioAtual ausente; abortando busca.');
+      setLeads([]);
+      return;
+    }
+    // superadmin pode ver tudo; demais perfis exigem revenda_id
+    if (usuarioAtual?.tipo !== 'superadmin' && !usuarioAtual?.revenda_id) {
+      console.warn('[buscarLeads] usuário sem revenda_id; abortando busca.', {
+        id: usuarioAtual?.id, tipo: usuarioAtual?.tipo
+      });
+      setLeads([]);
+      return;
     }
 
-    const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
+    let query = supabase.from('leads').select('*');
+    console.log('[buscarLeads] tipo:', usuarioAtual?.tipo, 'id:', usuarioAtual?.id);
 
-    return {
-      ...lead,
-      vendedor: vendedorObj?.id || "",
-      vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : "Sem vendedor",
-      tempoDecorrido: calcularTempoDecorrido(lead.created_at),
-      tempoMsgCliente: tempoUltimaMsgCliente, // <-- ADICIONA ESSA PROP
-    };
-  }));
-
-  setLeads(leadsProcessados);
-}
-
-
-console.log("🟦 [buscarLeads] Leads carregados do banco:", data);
-
-
-
-if (!error) {
-  // 1. Para cada lead, busque a última mensagem do cliente no Supabase
-  const leadsProcessados = await Promise.all(data.map(async (lead) => {
-    // Busca a última mensagem de entrada (direcao: "entrada") para esse lead
-    const { data: msgsCliente } = await supabase
-      .from("mensagens")
-      .select("*")
-      .eq("lead_id", lead.id)
-      .eq("direcao", "entrada")
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    // Busca a última mensagem de saída (direcao: "saida")
-    const { data: msgsUsuario } = await supabase
-      .from("mensagens")
-      .select("*")
-      .eq("lead_id", lead.id)
-      .eq("direcao", "saida")
-      .order("criado_em", { ascending: false })
-      .limit(1);
-
-    let tempoUltimaMsgCliente = null;
-    if (msgsCliente && msgsCliente.length > 0) {
-      // Se não existe resposta do usuário depois, considera como pendente
-      const ultimaMsgCliente = msgsCliente[0];
-      const ultimaMsgUsuario = msgsUsuario && msgsUsuario.length > 0 ? msgsUsuario[0] : null;
-      // Só considera o timer ativo se a resposta do usuário for anterior
-      if (!ultimaMsgUsuario || new Date(ultimaMsgCliente.criado_em) > new Date(ultimaMsgUsuario.criado_em)) {
-        tempoUltimaMsgCliente = Math.floor((Date.now() - new Date(ultimaMsgCliente.criado_em)) / 1000); // segundos
-      }
+    // 🌐 Multi-loja
+    if (usuarioAtual?.tipo === 'superadmin') {
+      console.log('🔵 [buscarLeads] superadmin: sem filtro de revenda.');
+    } else if (usuarioAtual?.tipo === 'admin' || usuarioAtual?.tipo === 'gerente') {
+      query = query.eq('revenda_id', usuarioAtual.revenda_id);
+      console.log('🟢 [buscarLeads] admin/gerente: revenda_id =', usuarioAtual.revenda_id);
+    } else {
+      query = query.eq('revenda_id', usuarioAtual.revenda_id).eq('vendedor_id', usuarioAtual.id);
+      console.log('🟡 [buscarLeads] vendedor: revenda_id & vendedor_id', usuarioAtual.revenda_id, usuarioAtual.id);
     }
 
-    const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
-    return {
-      ...lead,
-      vendedor: vendedorObj?.id || "",
-      vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : "Sem vendedor",
-      tempoDecorrido: calcularTempoDecorrido(lead.created_at),
-      tempoMsgCliente: tempoUltimaMsgCliente, // <-- ADICIONA ESSA PROP
-    };
-  }));
-
-  console.log("Leads processados:", leadsProcessados);
-  setLeads(leadsProcessados);
-}
-
-    
-    else {
-      console.error("Erro ao buscar leads:", error);
+    const { data, error } = await query;
+    if (error) {
+      console.error('Erro ao buscar leads:', error);
+      setLeads([]);
+      return;
     }
 
+    console.log('🟦 [buscarLeads] Leads carregados do banco:', data?.length ?? 0);
+
+    // 🧠 Enriquecimento: última msg do cliente + nome do vendedor
+    const leadsProcessados = await Promise.all(
+      (data ?? []).map(async (lead) => {
+        // última mensagem do cliente (entrada)
+        const { data: msgsCliente } = await supabase
+          .from('mensagens')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .eq('direcao', 'entrada')
+          .order('criado_em', { ascending: false })
+          .limit(1);
+
+        // última mensagem do usuário (saída)
+        const { data: msgsUsuario } = await supabase
+          .from('mensagens')
+          .select('*')
+          .eq('lead_id', lead.id)
+          .eq('direcao', 'saida')
+          .order('criado_em', { ascending: false })
+          .limit(1);
+
+        let tempoUltimaMsgCliente = null;
+        if (msgsCliente && msgsCliente.length > 0) {
+          const ultimaMsgCliente = msgsCliente[0];
+          const ultimaMsgUsuario = msgsUsuario && msgsUsuario.length > 0 ? msgsUsuario[0] : null;
+
+          // só ativa o timer se a última ação foi do cliente
+          if (!ultimaMsgUsuario || new Date(ultimaMsgCliente.criado_em) > new Date(ultimaMsgUsuario.criado_em)) {
+            tempoUltimaMsgCliente = Math.floor((Date.now() - new Date(ultimaMsgCliente.criado_em)) / 1000);
+          }
+        }
+
+        const vendedorObj = vendedoresLista.find(v => v.id === lead.vendedor_id);
+        return {
+          ...lead,
+          vendedor: vendedorObj?.id || '',
+          vendedorNome: vendedorObj ? formatarNomeSimplificado(vendedorObj.nome) : 'Sem vendedor',
+          tempoDecorrido: calcularTempoDecorrido(lead.created_at),
+          tempoMsgCliente: tempoUltimaMsgCliente,
+        };
+      })
+    );
+
+    setLeads(leadsProcessados);
+  } catch (e) {
+    console.error('[buscarLeads] exceção não tratada:', e);
+    setLeads([]);
+  } finally {
     setLoading(false);
-  };
+  }
+};
+
 
   const handleCriarLead = async () => {
     await buscarLeads();
