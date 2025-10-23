@@ -35,6 +35,22 @@ export default function EditarUsuario() {
     .split(" ")
     .map((palavra) => palavra.charAt(0).toUpperCase() + palavra.slice(1))
     .join(" ");
+    const [revendaIdAtual, setRevendaIdAtual] = useState(null);
+
+useEffect(() => {
+  // carrega a revenda do usuário logado para gravar no novo usuário
+  (async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) return;
+    const { data } = await supabase
+      .from('usuarios')
+      .select('revenda_id')
+      .eq('id', user.id)
+      .maybeSingle();
+    setRevendaIdAtual(data?.revenda_id ?? null);
+  })();
+}, []);
+
 
 
   useEffect(() => {
@@ -90,24 +106,27 @@ export default function EditarUsuario() {
           return;
         }
 
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: dados.email,
-          password: novaSenha,
-        });
+        // 1️⃣ Cria o usuário no Auth e captura diretamente o ID retornado
+const { data: authData, error: authError } = await supabase.auth.signUp({
+  email: dados.email,
+  password: novaSenha,
+});
 
-        if (authError) {
-          alert("Erro ao criar usuário (Auth): " + authError.message);
-          return;
-        }
+if (authError) {
+  // Mostra a mensagem real do Supabase (409, 422 etc.)
+  alert(`Erro ao criar usuário (Auth): ${authError.message}`);
+  console.error("[signUp][Auth error]", authError);
+  return;
+}
 
-        const { data: userData, error: userError } = await supabase.auth.getUser();
+const novoUserId = authData?.user?.id;
 
-        if (userError || !userData?.user?.id) {
-          alert("Erro ao obter ID do usuário recém-criado.");
-          return;
-        }
+if (!novoUserId) {
+  alert("Erro: o Supabase não retornou o ID do usuário recém-criado.");
+  console.error("[signUp] Retorno inesperado:", authData);
+  return;
+}
 
-        const userId = userData.user.id;
 
         const resposta = await supabase.from("usuarios").insert([
           {
