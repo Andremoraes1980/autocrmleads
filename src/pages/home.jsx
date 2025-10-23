@@ -349,17 +349,14 @@ useEffect(() => {
 }, [usuarioAtual, vendedoresLista]); // mantém vendedores na dependência, mas não bloqueia a 1ª busca
 
 
-  useEffect(() => {
-    const handleFocus = () => {
-      // Sempre que a Home ganha foco (ex: volta da conversa), refaz busca dos leads
-      buscarLeads();
-    };
-  
-    window.addEventListener("focus", handleFocus);
-    return () => {
-      window.removeEventListener("focus", handleFocus);
-    };
-  }, []);
+const handleFocus = () => {
+  if (usuarioAtual) {
+    buscarLeads();
+  } else {
+    console.warn('[focus] usuarioAtual ainda não montado; não buscar agora.');
+  }
+};
+
   
 
   // === buscarLeads (versão robusta) ===
