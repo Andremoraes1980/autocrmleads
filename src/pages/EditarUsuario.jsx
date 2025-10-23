@@ -90,57 +90,69 @@ useEffect(() => {
       const dados = {
         nome: nome.trim(),
         email: email.trim(),
-        telefone: telefone.trim(),
+        telefone: (telefone || "").trim(),
         ativo,
-        tipo: perfil.trim(),
-        
+        tipo: (perfil || "vendedor").trim(),
+        // precisa para passar na policy "mesma revenda"
+        ...(revendaIdAtual ? { revenda_id: revendaIdAtual } : {}),
+        // grava as permissões de classificados (ajuste os nomes se suas colunas forem diferentes)
+        ...classificados, // { mercadoLivre, olx, webmotors, icarros, mobiauto }
       };
+      
 
       if (isNovo) {
+        // validações
         if (!novaSenha || !confirmarSenha) {
-          alert("Informe a senha e confirmação para criar novo usuário.");
+          alert("Informe a senha e a confirmação para criar novo usuário.");
           return;
         }
         if (novaSenha !== confirmarSenha) {
           alert("Nova senha e confirmação não coincidem.");
           return;
         }
-
-        // 1️⃣ Cria o usuário no Auth e captura diretamente o ID retornado
-const { data: authData, error: authError } = await supabase.auth.signUp({
-  email: dados.email,
-  password: novaSenha,
-});
-
-if (authError) {
-  // Mostra a mensagem real do Supabase (409, 422 etc.)
-  alert(`Erro ao criar usuário (Auth): ${authError.message}`);
-  console.error("[signUp][Auth error]", authError);
-  return;
-}
-
-const novoUserId = authData?.user?.id;
-
-if (!novoUserId) {
-  alert("Erro: o Supabase não retornou o ID do usuário recém-criado.");
-  console.error("[signUp] Retorno inesperado:", authData);
-  return;
-}
-
-
-        const resposta = await supabase.from("usuarios").insert([
-          {
-            id: userId,
-            ...dados,
-          },
-        ]);
-
-        if (resposta.error) {
-          alert("Erro ao salvar dados do usuário.");
+        if (!dados.email) {
+          alert("Informe um e-mail válido.");
           return;
         }
-
+        if (!revendaIdAtual) {
+          alert("Não foi possível determinar a revenda do administrador.");
+          return;
+        }
+      
+        // 1️⃣ Cria o usuário no Auth e pega o ID diretamente da resposta
+        const { data: authData, error: authError } = await supabase.auth.signUp({
+          email: dados.email,
+          password: novaSenha,
+        });
+      
+        if (authError) {
+          // exibe o erro real (ex.: 409 User already registered, 422 senha inválida)
+          alert(`Erro ao criar usuário (Auth): ${authError.message}`);
+          console.error("[signUp][Auth error]", authError);
+          return; // <- muito importante parar aqui
+        }
+      
+        const novoUserId = authData?.user?.id;
+        if (!novoUserId) {
+          alert("Erro: o Supabase não retornou o ID do usuário recém-criado.");
+          console.error("[signUp] Retorno inesperado:", authData);
+          return;
+        }
+      
+        // 2️⃣ Insere ou atualiza na tabela usuarios
+        const { error: perfilErr } = await supabase
+          .from("usuarios")
+          .upsert({ id: novoUserId, ...dados }, { onConflict: "id" });
+      
+        if (perfilErr) {
+          alert(`Erro ao salvar dados do usuário: ${perfilErr.message}`);
+          console.error("[perfil][upsert error]", perfilErr);
+          return;
+        }
+      
         alert("Usuário criado com sucesso!");
+      
+      
       } else {
         const resposta = await supabase.from("usuarios").update(dados).eq("id", id);
 
@@ -154,7 +166,7 @@ if (!novoUserId) {
 
       navigate("/usuarios");
     } catch (err) {
-      alert("Erro inesperado ao salvar.");
+      alert(`Erro ao salvar: ${err?.message ?? String(err)}`);
       console.error("Erro no handleSalvar:", err);
     }
   };
