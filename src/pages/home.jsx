@@ -342,11 +342,12 @@ useEffect(() => {
 }, [leads.length]);
 
 
-  useEffect(() => {
-    if (usuarioAtual && vendedoresLista.length > 0) {
-      buscarLeads();
-    }
-  }, [usuarioAtual, vendedoresLista]);
+useEffect(() => {
+  if (usuarioAtual) {
+    buscarLeads();
+  }
+}, [usuarioAtual, vendedoresLista]); // mantém vendedores na dependência, mas não bloqueia a 1ª busca
+
 
   useEffect(() => {
     const handleFocus = () => {
