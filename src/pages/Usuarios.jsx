@@ -6,59 +6,100 @@ import Layout from "../components/Layout";
 import UsuarioCard from "../components/UsuarioCard";
 import styles from "./Usuarios.module.css";
 
-
 const Usuarios = () => {
   const [usuarios, setUsuarios] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState(null);
+  const [authUserId, setAuthUserId] = useState(null); // para bloquear excluir a si mesmo
   const navigate = useNavigate();
 
   useEffect(() => {
+    // pega o id do usuário logado
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      setAuthUserId(user?.id ?? null);
+    });
     carregarUsuarios();
+
+    // (opcional) realtime para atualizar sozinho quando alguém cria/edita
+    const ch = supabase
+      .channel("usuarios-lista")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "usuarios" },
+        () => carregarUsuarios(false)
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(ch);
+    };
   }, []);
 
-  const carregarUsuarios = async () => {
-    const { data, error } = await supabase
-      .from("usuarios")
-      .select("*")
-      .order("nome", { ascending: true });
+  const carregarUsuarios = async (marcarLoading = true) => {
+    try {
+      if (marcarLoading) setLoading(true);
+      setErro(null);
 
-    if (error) {
-      console.error("Erro ao buscar usuários:", error);
-    } else {
-      setUsuarios(data);
+      const { data, error } = await supabase
+        .from("usuarios")
+        .select("id, nome, email, tipo, ativo, revenda_id")
+        .order("nome", { ascending: true });
+
+      if (error) throw error;
+      setUsuarios(data || []);
+    } catch (e) {
+      console.error("Erro ao buscar usuários:", e);
+      setErro(e?.message ?? "Falha ao carregar usuários.");
+    } finally {
+      setLoading(false);
     }
   };
 
   const ativarUsuario = async (id) => {
-    const { error } = await supabase
-      .from("usuarios")
-      .update({ ativo: true })
-      .eq("id", id);
-
-    if (error) console.error("Erro ao ativar usuário:", error);
-    else carregarUsuarios();
+    try {
+      const { error } = await supabase
+        .from("usuarios")
+        .update({ ativo: true })
+        .eq("id", id);
+      if (error) throw error;
+      carregarUsuarios(false);
+    } catch (e) {
+      alert(`Erro ao ativar usuário: ${e?.message ?? "desconhecido"}`);
+    }
   };
 
   const inativarUsuario = async (id) => {
-    const { error } = await supabase
-      .from("usuarios")
-      .update({ ativo: false })
-      .eq("id", id);
-
-    if (error) console.error("Erro ao inativar usuário:", error);
-    else carregarUsuarios();
+    try {
+      const { error } = await supabase
+        .from("usuarios")
+        .update({ ativo: false })
+        .eq("id", id);
+      if (error) throw error;
+      carregarUsuarios(false);
+    } catch (e) {
+      alert(`Erro ao inativar usuário: ${e?.message ?? "desconhecido"}`);
+    }
   };
 
   const excluirUsuario = async (id) => {
-    const confirmar = window.confirm("Tem certeza que deseja excluir este usuário?");
+    if (id === authUserId) {
+      alert("Você não pode excluir o seu próprio usuário.");
+      return;
+    }
+
+    const confirmar = window.confirm(
+      "Tem certeza que deseja excluir este usuário?"
+    );
     if (!confirmar) return;
 
-    const { error } = await supabase
-      .from("usuarios")
-      .delete()
-      .eq("id", id);
-
-    if (error) console.error("Erro ao excluir usuário:", error);
-    else carregarUsuarios();
+    try {
+      const { error } = await supabase.from("usuarios").delete().eq("id", id);
+      if (error) throw error;
+      carregarUsuarios(false);
+    } catch (e) {
+      // Mostra a mensagem real do Supabase (ex.: FK antiga, RLS, etc.)
+      alert(`Erro ao excluir usuário: ${e?.message ?? "desconhecido"}`);
+    }
   };
 
   return (
@@ -69,11 +110,13 @@ const Usuarios = () => {
         </div>
 
         <div className={styles.actionContainer}>
-        <button onClick={() => navigate("/usuario/novo")}>
-  Adicionar Usuário
-</button>
-
+          <button onClick={() => navigate("/usuario/novo")}>
+            Adicionar Usuário
+          </button>
         </div>
+
+        {loading && <p>Carregando usuários…</p>}
+        {erro && <p style={{ color: "tomato" }}>{erro}</p>}
 
         <div className={styles.usuarioCardsContainer}>
           {usuarios.map((usuario) => (
@@ -85,6 +128,7 @@ const Usuarios = () => {
               onExcluir={excluirUsuario}
             />
           ))}
+          {!loading && usuarios.length === 0 && <p>Nenhum usuário encontrado.</p>}
         </div>
       </div>
     </Layout>
