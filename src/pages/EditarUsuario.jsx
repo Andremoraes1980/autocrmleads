@@ -94,15 +94,28 @@ useEffect(() => {
         telefone: (telefone || "").trim(),
         ativo,
         tipo: (perfil || "vendedor").trim(),
-        // precisa para passar na policy "mesma revenda"
+  
+        // 🔹 passa o revenda_id apenas se houver (para evitar erro de RLS)
         ...(revendaIdAtual ? { revenda_id: revendaIdAtual } : {}),
-        // grava as permissões de classificados (ajuste os nomes se suas colunas forem diferentes)
-        ...classificados, // { mercadoLivre, olx, webmotors, icarros, mobiauto }
+  
+        // 🔹 (temporariamente ignorar classificados até as colunas existirem)
+        // ...classificados,
       };
-      
-
+  
+      // 🆕 (1) Validações básicas
+      if (!dados.nome) {
+        alert("Informe o nome do usuário.");
+        return;
+      }
+      if (!dados.email) {
+        alert("Informe um e-mail válido.");
+        return;
+      }
+  
+      // ----------------------------------------------------------------
+      // 🔹 CASO SEJA NOVO USUÁRIO
+      // ----------------------------------------------------------------
       if (isNovo) {
-        // validações
         if (!novaSenha || !confirmarSenha) {
           alert("Informe a senha e a confirmação para criar novo usuário.");
           return;
@@ -111,66 +124,83 @@ useEffect(() => {
           alert("Nova senha e confirmação não coincidem.");
           return;
         }
-        if (!dados.email) {
-          alert("Informe um e-mail válido.");
-          return;
-        }
         if (!revendaIdAtual) {
           alert("Não foi possível determinar a revenda do administrador.");
           return;
         }
-      
-        // 1️⃣ Cria o usuário no Auth e pega o ID diretamente da resposta
+  
+        // 🔹 (2) Verifica se o e-mail já existe no Supabase Auth
+        const { data: existingAuth, error: existingAuthErr } = await supabase.auth.signInWithPassword({
+          email: dados.email,
+          password: novaSenha,
+        });
+  
+        if (existingAuth && existingAuth.user) {
+          alert("Já existe um usuário cadastrado com este e-mail.");
+          return;
+        }
+  
+        // 🔹 (3) Cria o usuário no Auth
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: dados.email,
           password: novaSenha,
         });
-      
+  
         if (authError) {
-          // exibe o erro real (ex.: 409 User already registered, 422 senha inválida)
           alert(`Erro ao criar usuário (Auth): ${authError.message}`);
           console.error("[signUp][Auth error]", authError);
-          return; // <- muito importante parar aqui
+          return;
         }
-      
+  
         const novoUserId = authData?.user?.id;
         if (!novoUserId) {
           alert("Erro: o Supabase não retornou o ID do usuário recém-criado.");
           console.error("[signUp] Retorno inesperado:", authData);
           return;
         }
-      
-        // 2️⃣ Insere ou atualiza na tabela usuarios
+  
+        // 🔹 (4) Grava na tabela `usuarios`
         const { error: perfilErr } = await supabase
           .from("usuarios")
-          .upsert({ id: novoUserId, ...dados }, { onConflict: "id" });
-      
+          .upsert(
+            { id: novoUserId, ...dados },
+            { onConflict: "id" }
+          );
+  
         if (perfilErr) {
           alert(`Erro ao salvar dados do usuário: ${perfilErr.message}`);
           console.error("[perfil][upsert error]", perfilErr);
           return;
         }
-      
+  
         alert("Usuário criado com sucesso!");
-      
-      
-      } else {
-        const resposta = await supabase.from("usuarios").update(dados).eq("id", id);
-
-        if (resposta.error) {
-          alert("Erro ao atualizar usuário.");
+      }
+  
+      // ----------------------------------------------------------------
+      // 🔹 CASO SEJA EDIÇÃO DE USUÁRIO EXISTENTE
+      // ----------------------------------------------------------------
+      else {
+        const { error: updateErr } = await supabase
+          .from("usuarios")
+          .update(dados)
+          .eq("id", id);
+  
+        if (updateErr) {
+          alert("Erro ao atualizar usuário: " + updateErr.message);
+          console.error(updateErr);
           return;
         }
-
+  
         alert("Usuário atualizado com sucesso!");
       }
-
+  
       navigate("/usuarios");
     } catch (err) {
       alert(`Erro ao salvar: ${err?.message ?? String(err)}`);
       console.error("Erro no handleSalvar:", err);
     }
   };
+  
 
   const handleTrocarSenha = async () => {
     if (!senhaAtual || !novaSenha || !confirmarSenha) {
