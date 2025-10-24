@@ -69,6 +69,7 @@ useEffect(() => {
           setTelefone(typeof data.telefone === "string" ? data.telefone : "");
           setAtivo(data.ativo);
           setPerfil(data.tipo || "vendedor");
+          // temporariamente ignorado
           setClassificados({
             mercadoLivre: data.mercadoLivre || false,
             olx: data.olx || false,
