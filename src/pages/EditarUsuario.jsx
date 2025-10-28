@@ -4,6 +4,7 @@ import Layout from "../components/Layout";
 import { supabase } from "../lib/supabaseClient";
 import styles from "./EditarUsuario.module.css";
 import PasswordInput from "../components/PasswordInput";
+const API_BASE = import.meta.env.VITE_BACKEND_URL || 'https://SEU_BACKEND_AQUI';
 
 
 export default function EditarUsuario() {
