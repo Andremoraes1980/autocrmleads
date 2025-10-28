@@ -88,119 +88,106 @@ useEffect(() => {
   }, [id, isNovo]);
 
   const handleSalvar = async () => {
-    try {
-      const dados = {
-        nome: nome.trim(),
-        email: email.trim(),
-        telefone: (telefone || "").trim(),
-        ativo,
-        tipo: (perfil || "vendedor").trim(),
-  
-        // 🔹 passa o revenda_id apenas se houver (para evitar erro de RLS)
-        ...(revendaIdAtual ? { revenda_id: revendaIdAtual } : {}),
-  
-        // 🔹 (temporariamente ignorar classificados até as colunas existirem)
-        // ...classificados,
-      };
-  
-      // 🆕 (1) Validações básicas
-      if (!dados.nome) {
-        alert("Informe o nome do usuário.");
-        return;
-      }
-      if (!dados.email) {
-        alert("Informe um e-mail válido.");
-        return;
-      }
-  
-      // ----------------------------------------------------------------
-      // 🔹 CASO SEJA NOVO USUÁRIO
-      // ----------------------------------------------------------------
-      if (isNovo) {
-        if (!novaSenha || !confirmarSenha) {
-          alert("Informe a senha e a confirmação para criar novo usuário.");
-          return;
-        }
-        if (novaSenha !== confirmarSenha) {
-          alert("Nova senha e confirmação não coincidem.");
-          return;
-        }
-        if (!revendaIdAtual) {
-          alert("Não foi possível determinar a revenda do administrador.");
-          return;
-        }
-  
-        // 🔹 (2) Verifica se o e-mail já existe no Supabase Auth
-        const { data: existingAuth, error: existingAuthErr } = await supabase.auth.signInWithPassword({
-          email: dados.email,
-          password: novaSenha,
-        });
-  
-        if (existingAuth && existingAuth.user) {
-          alert("Já existe um usuário cadastrado com este e-mail.");
-          return;
-        }
-  
-        // 🔹 (3) Cria o usuário no Auth
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: dados.email,
-          password: novaSenha,
-        });
-  
-        if (authError) {
-          alert(`Erro ao criar usuário (Auth): ${authError.message}`);
-          console.error("[signUp][Auth error]", authError);
-          return;
-        }
-  
-        const novoUserId = authData?.user?.id;
-        if (!novoUserId) {
-          alert("Erro: o Supabase não retornou o ID do usuário recém-criado.");
-          console.error("[signUp] Retorno inesperado:", authData);
-          return;
-        }
-  
-        // 🔹 (4) Grava na tabela `usuarios`
-        const { error: perfilErr } = await supabase
-          .from("usuarios")
-          .upsert(
-            { id: novoUserId, ...dados },
-            { onConflict: "id" }
-          );
-  
-        if (perfilErr) {
-          alert(`Erro ao salvar dados do usuário: ${perfilErr.message}`);
-          console.error("[perfil][upsert error]", perfilErr);
-          return;
-        }
-  
-        alert("Usuário criado com sucesso!");
-      }
-  
-      // ----------------------------------------------------------------
-      // 🔹 CASO SEJA EDIÇÃO DE USUÁRIO EXISTENTE
-      // ----------------------------------------------------------------
-      else {
-        const { error: updateErr } = await supabase
-          .from("usuarios")
-          .update(dados)
-          .eq("id", id);
-  
-        if (updateErr) {
-          alert("Erro ao atualizar usuário: " + updateErr.message);
-          console.error(updateErr);
-          return;
-        }
-  
-        alert("Usuário atualizado com sucesso!");
-      }
-  
-      navigate("/usuarios");
-    } catch (err) {
-      alert(`Erro ao salvar: ${err?.message ?? String(err)}`);
-      console.error("Erro no handleSalvar:", err);
+  try {
+    // 1) Monta objeto comum (somente dados do perfil)
+    const dados = {
+      nome: nome.trim(),
+      email: email.trim(),
+      telefone: (telefone || "").trim(),
+      ativo: Boolean(ativo),
+      tipo: (perfil || "vendedor").trim().toLowerCase(),
+    };
+
+    // 2) Validações
+    if (!dados.nome) {
+      alert("Informe o nome do usuário.");
+      return;
     }
-  };
+    if (!dados.email) {
+      alert("Informe um e-mail válido.");
+      return;
+    }
+
+    // 3) Fluxo de NOVO usuário → chama backend (Service Role)
+    if (isNovo) {
+      if (!novaSenha || !confirmarSenha) {
+        alert("Informe a senha e a confirmação para criar novo usuário.");
+        return;
+      }
+      if (novaSenha !== confirmarSenha) {
+        alert("Nova senha e confirmação não coincidem.");
+        return;
+      }
+
+      // Pega token do admin logado
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (!token) {
+        alert("Sessão inválida. Faça login novamente.");
+        return;
+      }
+
+      // Chamada ao backend
+      const payload = {
+        nome: dados.nome,
+        email: dados.email,
+        senha: novaSenha,
+        telefone: dados.telefone,
+        tipo: dados.tipo,
+        ativo: dados.ativo,
+      };
+
+      console.log("[FRONT] POST /admin/users →", API_BASE, payload);
+
+      const resp = await fetch(`${API_BASE}/admin/users`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!resp.ok) {
+        let msg = "Falha ao criar usuário.";
+        try {
+          const j = await resp.json();
+          if (j?.error) msg = j.error;
+        } catch (_) {}
+        alert(msg);
+        console.error("[FRONT] /admin/users erro:", resp.status, msg);
+        return;
+      }
+
+      const out = await resp.json().catch(() => ({}));
+      console.log("[FRONT] /admin/users OK:", out);
+      alert("Usuário criado com sucesso!");
+    }
+
+    // 4) Fluxo de EDIÇÃO (permanece direto no Supabase)
+    else {
+      const { error: updateErr } = await supabase
+        .from("usuarios")
+        .update(dados)
+        .eq("id", id);
+
+      if (updateErr) {
+        alert("Erro ao atualizar usuário: " + updateErr.message);
+        console.error(updateErr);
+        return;
+      }
+
+      alert("Usuário atualizado com sucesso!");
+    }
+
+    // 5) Finaliza
+    navigate("/usuarios");
+  } catch (err) {
+    alert(`Erro ao salvar: ${err?.message ?? String(err)}`);
+    console.error("Erro no handleSalvar:", err);
+  }
+};
+
   
 
   const handleTrocarSenha = async () => {
