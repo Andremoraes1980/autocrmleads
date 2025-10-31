@@ -177,13 +177,17 @@ console.log("[EDIT] status:", status, "error:", updateErr);
 console.log("[EDIT] updated rows:", Array.isArray(updData) ? updData.length : null, updData);
 
 
-      if (updateErr) {
-        alert("Erro ao atualizar usuário: " + updateErr.message);
-        console.error(updateErr);
-        return;
-      }
+if (updateErr) {
+  alert("Erro ao atualizar usuário: " + updateErr.message);
+  console.error(updateErr);
+  return;
+}
+if (!updData || updData.length === 0) {
+  alert("Nada foi atualizado (0 linhas). Verifique se o ID bate e se há permissão RLS.");
+  return;
+}
+alert("Usuário atualizado com sucesso!");
 
-      alert("Usuário atualizado com sucesso!");
     }
 
     // 5) Finaliza
