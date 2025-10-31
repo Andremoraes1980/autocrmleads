@@ -166,10 +166,16 @@ useEffect(() => {
 
     // 4) Fluxo de EDIÇÃO (permanece direto no Supabase)
     else {
-      const { error: updateErr } = await supabase
-        .from("usuarios")
-        .update(dados)
-        .eq("id", id);
+      const { data: updData, error: updateErr, status } = await supabase
+  .from("usuarios")
+  .update(dados)
+  .eq("id", id)
+  .select("id, nome, email, telefone, tipo, ativo"); // força return=representation
+
+console.log("[EDIT] id param:", id);
+console.log("[EDIT] status:", status, "error:", updateErr);
+console.log("[EDIT] updated rows:", Array.isArray(updData) ? updData.length : null, updData);
+
 
       if (updateErr) {
         alert("Erro ao atualizar usuário: " + updateErr.message);
