@@ -1653,6 +1653,18 @@ useEffect(() => {
       // 🔍 Tenta pegar do lead, se não tiver, usa o remetente da última mensagem
       const fallbackId = mensagens.length > 0 ? mensagens[mensagens.length - 1].remetente_id : null;
       const idParaBuscar = vendedorId || fallbackId;
+
+      console.log("🧠 [DEBUG buscarNomeVendedor]");
+console.log("➡️ leadId:", leadId);
+console.log("➡️ lead2:", lead2);
+console.log("➡️ lead2.vendedor_id:", lead2?.vendedor_id);
+console.log("➡️ mensagens.length:", mensagens.length);
+console.log("➡️ Última mensagem:", mensagens[mensagens.length - 1]);
+console.log("➡️ remetente_id da última mensagem:", mensagens[mensagens.length - 1]?.remetente_id);
+console.log("➡️ vendedorId:", vendedorId);
+console.log("➡️ fallbackId:", fallbackId);
+console.log("➡️ idParaBuscar:", idParaBuscar);
+
     
       if (!idParaBuscar) {
         console.warn("⚠️ Nenhum vendedor ou remetente_id encontrado.");
