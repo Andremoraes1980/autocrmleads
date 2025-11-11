@@ -1262,29 +1262,35 @@ function mergeMensagens(prev, incomingListOrOne) {
 }
 
 // ---- mensagens recebidas (entrada) ----
-const handleMensagemRecebida = (payload) => {
-  const { lead_id: recebidaDoSocket, mensagem } = payload || {};
-  if (recebidaDoSocket === leadId && mensagem) {
-    setMensagens((prev) => {
-      // Verifica se já existe no estado (id local ou id externo)
-      const jaExiste = prev.find(
-        (m) => m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
-      );
+const handleMensagemRecebida = (data) => {
+  console.log("📩 [Front] Evento mensagemRecebida:", data);
 
-      if (jaExiste) {
-        // Faz merge, preservando campos já existentes como ack
-        return prev.map((m) =>
-          m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
-            ? { ...m, ...mensagem, ack: m.ack ?? mensagem.ack }
-            : m
-        );
-      }
-       // Se for nova, adiciona ao array
-       return [...prev, mensagem];
+  // Se o backend mandar direto a mensagem, data é o objeto; se mandar { lead_id, mensagem }, normaliza
+  const lead_id = data?.lead_id || data?.leadId || data?.lead || data?.lead_id_ref || data?.lead_ref || data?.lead_id_backend || data?.lead_id_socket;
+  const mensagem = data?.mensagem || data; // aceita ambos os formatos
 
-      });
-    }
-  };
+  // Garante que pertence ao lead atual
+  if (lead_id && lead_id !== leadId) {
+    console.log("⏭️ Ignorada (lead diferente)", { lead_id, leadId });
+    return;
+  }
+
+  if (!mensagem?.id && !mensagem?.mensagem_id_externo) {
+    console.warn("⚠️ Mensagem recebida inválida:", mensagem);
+    return;
+  }
+
+  // Atualiza o estado local em tempo real
+  setMensagens((prev) => {
+    const jaExiste = prev.find(
+      (m) => m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
+    );
+    if (jaExiste) return prev; // evita duplicar
+    console.log("✅ Nova mensagem adicionada:", mensagem);
+    return [...prev, mensagem];
+  });
+};
+
 
 // ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
 const handleStatusEnvio = (evt = {}) => {
