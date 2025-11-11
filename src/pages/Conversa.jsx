@@ -1649,14 +1649,8 @@ useEffect(() => {
   useEffect(() => {
     const buscarNomeVendedor = async () => {
       const vendedorId = lead?.vendedor_id;
-    
-      // 🔍 Tenta pegar do lead, se não tiver, usa o remetente da última mensagem
-      const fallbackId = mensagens.length > 0 ? mensagens[mensagens.length - 1].remetente_id : null;
-      const idParaBuscar = vendedorId || fallbackId;
 
-      const vendedorId = lead?.vendedor_id;
-
-console.log("🧠 [DEBUG buscarNomeVendedor]");
+      console.log("🧠 [DEBUG buscarNomeVendedor]");
 console.log("➡️ leadId:", leadId);
 console.log("➡️ lead:", lead);
 console.log("➡️ lead.vendedor_id:", lead?.vendedor_id);
@@ -1666,7 +1660,12 @@ console.log("➡️ remetente_id da última mensagem:", mensagens[mensagens.leng
 console.log("➡️ vendedorId:", vendedorId);
 console.log("➡️ fallbackId:", fallbackId);
 console.log("➡️ idParaBuscar:", idParaBuscar);
+    
+      // 🔍 Tenta pegar do lead, se não tiver, usa o remetente da última mensagem
+      const fallbackId = mensagens.length > 0 ? mensagens[mensagens.length - 1].remetente_id : null;
+      const idParaBuscar = vendedorId || fallbackId;
 
+      
 
     
       if (!idParaBuscar) {
