@@ -1646,58 +1646,59 @@ useEffect(() => {
 
   
 
-  useEffect(() => {
-    const buscarNomeVendedor = async () => {
-      const vendedorId = lead?.vendedor_id;
+useEffect(() => {
+  let vivo = true;
 
-      console.log("🧠 [DEBUG buscarNomeVendedor]");
-console.log("➡️ leadId:", leadId);
-console.log("➡️ lead:", lead);
-console.log("➡️ lead.vendedor_id:", lead?.vendedor_id);
-console.log("➡️ mensagens.length:", mensagens.length);
-console.log("➡️ Última mensagem:", mensagens[mensagens.length - 1]);
-console.log("➡️ remetente_id da última mensagem:", mensagens[mensagens.length - 1]?.remetente_id);
-console.log("➡️ vendedorId:", vendedorId);
-console.log("➡️ fallbackId:", fallbackId);
-console.log("➡️ idParaBuscar:", idParaBuscar);
-    
-      // 🔍 Tenta pegar do lead, se não tiver, usa o remetente da última mensagem
-      const fallbackId = mensagens.length > 0 ? mensagens[mensagens.length - 1].remetente_id : null;
-      const idParaBuscar = vendedorId || fallbackId;
+  const buscarNomeVendedor = async () => {
+    try {
+      const leadObj = lead ?? null;
+      const temMensagens = Array.isArray(mensagens) && mensagens.length > 0;
+      const ultimaMsg = temMensagens ? mensagens[mensagens.length - 1] : null;
 
-      
+      const vendedorId = leadObj?.vendedor_id ?? null;
+      const fallbackId = ultimaMsg?.remetente_id ?? null;
+      const idParaBuscar = vendedorId ?? fallbackId;
 
-    
+      console.log("🧠 [DEBUG buscarNomeVendedor]", {
+        leadId,
+        lead: leadObj,
+        "lead.vendedor_id": vendedorId,
+        "mensagens.length": temMensagens ? mensagens.length : 0,
+        "última mensagem": ultimaMsg ?? null,
+        "remetente_id da última": ultimaMsg?.remetente_id ?? null,
+        idParaBuscar,
+      });
+
       if (!idParaBuscar) {
         console.warn("⚠️ Nenhum vendedor ou remetente_id encontrado.");
-        setNomeVendedor(null);
+        if (vivo) setNomeVendedor("Sem vendedor");
         return;
       }
-    
-      console.log("🔍 Buscando nome do vendedor/remetente:", idParaBuscar);
-    
+
       const { data, error } = await supabase
         .from("usuarios")
         .select("nome")
-        .eq("id", idParaBuscar)
-        .maybeSingle();
-    
-      if (error) {
-        console.error("❌ Erro ao buscar nome:", error.message);
-        setNomeVendedor(null);
-      } else if (!data) {
-        console.warn("⚠️ Nenhum usuário encontrado com ID:", idParaBuscar);
-        setNomeVendedor(null);
-      } else {
-        console.log("✅ Nome do vendedor encontrado:", data.nome);
-        setNomeVendedor(data.nome);
-      }
-    };
-    
-    
+        .eq("id", String(idParaBuscar))
+        .single();
 
-    buscarNomeVendedor();
-  }, [lead?.vendedor_id]);
+      if (error) {
+        console.warn("⚠️ [buscarNomeVendedor] Erro Supabase:", error);
+        if (vivo) setNomeVendedor("Sem vendedor");
+        return;
+      }
+
+      if (!vivo) return;
+      setNomeVendedor(data?.nome || "Sem vendedor");
+    } catch (e) {
+      console.error("💥 [buscarNomeVendedor] Exceção:", e);
+      if (vivo) setNomeVendedor("Sem vendedor");
+    }
+  };
+
+  buscarNomeVendedor();
+  return () => { vivo = false; };
+}, [lead?.vendedor_id, mensagens?.length, leadId]);
+
 
   function formatarNumeroWhatsApp(telefone) {
     let numero = (telefone || "").replace(/\D/g, "");
