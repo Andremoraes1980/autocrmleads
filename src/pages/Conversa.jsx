@@ -1213,8 +1213,17 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     }
      
     
-    console.log("🚪 [Front] Emitindo entrarNaSala para lead:", leadId);
-    socket.emit("entrarNaSala", { lead_id: leadId });
+    console.log("| [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
+
+if (!socket || !leadId) {
+  console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
+  return;
+}
+
+console.log("🚀 [Front] Vai emitir evento entrarNaSala agora...");
+socket.emit("entrarNaSala", { lead_id: leadId });
+console.log("✅ [Front] Evento entrarNaSala emitido com sucesso!");
+
 
 
     
