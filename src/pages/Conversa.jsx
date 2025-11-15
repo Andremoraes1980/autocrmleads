@@ -1271,12 +1271,26 @@ function mergeMensagens(prev, incomingListOrOne) {
 }
 
 // ---- mensagens recebidas (entrada) ----
-const handleMensagemRecebida = (data) => {
-  console.log("📩 [Front] Evento mensagemRecebida:", data);
+const handleMensagemRecebida = (payload) => {
+  console.log("📩 [Front] Evento mensagemRecebida:", payload);
 
-  // Se o backend mandar direto a mensagem, data é o objeto; se mandar { lead_id, mensagem }, normaliza
-  const lead_id = data?.lead_id || data?.leadId || data?.lead || data?.lead_id_ref || data?.lead_ref || data?.lead_id_backend || data?.lead_id_socket;
-  const mensagem = data?.mensagem || data; // aceita ambos os formatos
+  // Aceita tanto { success:true, data:{...} } quanto payload cru (retrocompat)
+  const pack = payload?.data ?? payload;
+
+  // Extrai lead da casca ou do próprio objeto de mensagem
+  const lead_id =
+    pack?.lead_id ??
+    pack?.leadId ??
+    pack?.lead ??
+    pack?.lead_id_ref ??
+    pack?.lead_ref ??
+    pack?.lead_id_backend ??
+    pack?.lead_id_socket ??
+    pack?.mensagem?.lead_id ??
+    pack?.data?.lead_id;
+
+  // Mensagem pode vir em pack.mensagem ou ser o próprio pack
+  const mIn = pack?.mensagem ?? pack;
 
   // Garante que pertence ao lead atual
   if (lead_id && lead_id !== leadId) {
@@ -1284,21 +1298,47 @@ const handleMensagemRecebida = (data) => {
     return;
   }
 
-  if (!mensagem?.id && !mensagem?.mensagem_id_externo) {
-    console.warn("⚠️ Mensagem recebida inválida:", mensagem);
+  // Normalização de campos
+  const msg = {
+    id: mIn?.id ?? null,
+    mensagem_id_externo: mIn?.mensagem_id_externo ?? mIn?.id_externo ?? null,
+    lead_id: mIn?.lead_id ?? leadId ?? null,
+    canal: mIn?.canal ?? "WhatsApp Cockpit",
+    tipo: mIn?.tipo ?? "texto",
+    lida: Boolean(mIn?.lida ?? false),
+    remetente: mIn?.remetente ?? null,
+    remetente_id: mIn?.remetente_id ?? null,
+    vendedor_id: mIn?.vendedor_id ?? null,
+    telefone_cliente: mIn?.telefone_cliente ?? mIn?.telefone ?? null,
+    mensagem: mIn?.mensagem ?? mIn?.body ?? mIn?.texto ?? "",
+    criado_em: mIn?.criado_em ?? new Date().toISOString(),
+  };
+
+  if (!msg.id && !msg.mensagem_id_externo) {
+    console.warn("⚠️ Mensagem recebida inválida (sem id):", msg);
     return;
   }
 
-  // Atualiza o estado local em tempo real
   setMensagens((prev) => {
-    const jaExiste = prev.find(
-      (m) => m.id === mensagem.id || m.mensagem_id_externo === mensagem.mensagem_id_externo
+    // dedup por id OU por id externo
+    const exists = prev.some(
+      (m) => (msg.id && m.id === msg.id) || (msg.mensagem_id_externo && m.mensagem_id_externo === msg.mensagem_id_externo)
     );
-    if (jaExiste) return prev; // evita duplicar
-    console.log("✅ Nova mensagem adicionada:", mensagem);
-    return [...prev, mensagem];
+    if (exists) return prev;
+
+    const next = [...prev, msg];
+    // ordena por timestamp
+    next.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
+    return next;
+  });
+
+  // autoscroll suave para o final (adicione <div id="fim-conversa" /> no fim da lista)
+  requestAnimationFrame(() => {
+    const fim = document.getElementById("fim-conversa");
+    if (fim) fim.scrollIntoView({ behavior: "smooth", block: "end" });
   });
 };
+
 
 
 // ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
@@ -1934,16 +1974,22 @@ const baixarTodasImagens = async (imagens, groupId = "") => {
 };
 
 
-const renderMensagens = () =>
-  mensagens.map((msg) => (
-    <Bubble 
-    key={msg.id} 
-    msg={msg} 
-    mapaUsuarios={mapaUsuarios}
-     enviadosIphone={enviadosIphone}
-     setEnviadosIphone={setEnviadosIphone}
-    />
-  ));
+const renderMensagens = () => (
+  <>
+    {mensagens.map((msg) => (
+      <Bubble
+        key={msg.id}
+        msg={msg}
+        mapaUsuarios={mapaUsuarios}
+        enviadosIphone={enviadosIphone}
+        setEnviadosIphone={setEnviadosIphone}
+      />
+    ))}
+    <div id="fim-conversa" />
+  </>
+);
+
+
 
   if (!lead) return <div>Carregando lead...</div>;
   console.log("HISTORICO QUE VAI PARA O MAP:", historico);
