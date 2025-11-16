@@ -1165,8 +1165,138 @@ useEffect(() => {
   };
 }, []);
 
+
+
 function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   const socketRef = useRef(null);
+
+  // 🔧 helper: ACK monotônico e upsert por id
+  const normalizeAck = (prevAck = 0, nextAck = 0) => {
+    const p = Number(prevAck ?? 0);
+    const n = Number(nextAck ?? 0);
+    if (n === -1) return -1;            // erro tem prioridade
+    return Math.max(p, n);               // 1→2→3→4 nunca regride
+  };
+
+  // Upsert mantendo ACK monotônico e campos já conhecidos
+  function mergeMensagens(prev, incomingListOrOne) {
+    const list = Array.isArray(incomingListOrOne)
+      ? incomingListOrOne
+      : [incomingListOrOne].filter(Boolean);
+
+    if (!list.length) return prev;
+
+    const byId = new Map(prev.map(m => [m.id, m]));
+    for (const inc of list) {
+      const cur = byId.get(inc.id);
+      if (!cur) {
+        // mensagem nova: entra como veio
+        byId.set(inc.id, inc);
+        continue;
+      }
+      // já existe: preserva e promove ACK; mescla campos novos
+      const ack = normalizeAck(cur.ack, inc.ack);
+      byId.set(inc.id, { ...cur, ...inc, ack });
+    }
+    return Array.from(byId.values());
+  }
+
+  // ---- mensagens recebidas (entrada) ----
+  const handleMensagemRecebida = useCallback((payload) => {
+    console.log("📩 [Front] Evento mensagemRecebida:", payload);
+
+    const pack = payload?.data ?? payload;
+
+    const lead_id =
+      pack?.lead_id ??
+      pack?.leadId ??
+      pack?.lead ??
+      pack?.lead_id_ref ??
+      pack?.lead_ref ??
+      pack?.lead_id_backend ??
+      pack?.lead_id_socket ??
+      pack?.mensagem?.lead_id ??
+      pack?.data?.lead_id;
+
+    const mIn = pack?.mensagem ?? pack;
+
+    if (lead_id && lead_id !== leadId) {
+      console.log("⏭️ Ignorada (lead diferente)", { lead_id, leadId });
+      return;
+    }
+
+    const msg = {
+      id: mIn?.id ?? null,
+      mensagem_id_externo: mIn?.mensagem_id_externo ?? mIn?.id_externo ?? null,
+      lead_id: mIn?.lead_id ?? leadId ?? null,
+      canal: mIn?.canal ?? "WhatsApp Cockpit",
+      tipo: mIn?.tipo ?? "texto",
+      lida: Boolean(mIn?.lida ?? false),
+      remetente: mIn?.remetente ?? null,
+      remetente_id: mIn?.remetente_id ?? null,
+      vendedor_id: mIn?.vendedor_id ?? null,
+      telefone_cliente: mIn?.telefone_cliente ?? mIn?.telefone ?? null,
+      mensagem: mIn?.mensagem ?? mIn?.body ?? mIn?.texto ?? "",
+      criado_em: mIn?.criado_em ?? new Date().toISOString(),
+    };
+
+    if (!msg.id && !msg.mensagem_id_externo) {
+      console.warn("⚠️ Mensagem recebida inválida (sem id):", msg);
+      return;
+    }
+
+    setMensagens((prev) => {
+      const exists = prev.some(
+        (m) =>
+          (msg.id && m.id === msg.id) ||
+          (msg.mensagem_id_externo && m.mensagem_id_externo === msg.mensagem_id_externo)
+      );
+      if (exists) return prev;
+
+      const next = [...prev, msg];
+      next.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
+      return next;
+    });
+
+    requestAnimationFrame(() => {
+      const fim = document.getElementById("fim-conversa");
+      if (fim) fim.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
+  }, [leadId]);
+
+  // ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
+  const handleStatusEnvio = (evt = {}) => {
+    const { mensagemIdLocal, mensagemId, ack } = evt;
+
+    setMensagens((prev) =>
+      prev.map((m) => {
+        // Casa por id local
+        if (mensagemIdLocal && m.id === mensagemIdLocal) {
+          return { ...m, ack: normalizeAck(m.ack, ack) };
+        }
+        // Casa por id externo (WhatsApp)
+        if (mensagemId && m.mensagem_id_externo === mensagemId) {
+          return { ...m, ack: normalizeAck(m.ack, ack) };
+        }
+        return m;
+      })
+    );
+  };
+
+  // ---- áudio reenviado (marcar badge verde no card) ----
+  const handleAudioReenviado = ({ mensagemId }) => {
+    if (!mensagemId) return;
+    // 1) estado auxiliar (badge)
+    setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
+    // 2) reflete no array da conversa
+    setMensagens((prev) =>
+      prev.map((m) =>
+        m.id === mensagemId
+          ? { ...m, audio_reenviado: true, audio_reenviado_em: new Date().toISOString() }
+          : m
+      )
+    );
+  };
 
   // 1. Só conecta o socket UMA vez
   useEffect(() => {
@@ -1182,13 +1312,11 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       socketRef.current.onAny((event, ...args) => {
         console.log("➡️ Front recebeu evento:", event, args);
       });
-      
 
       // ←––––– AQUI: confirma quando a conexão for estabelecida
       socketRef.current.on("connect", () => {
-         console.log("✅ Socket conectado:", socketRef.current.id);
+        console.log("✅ Socket conectado:", socketRef.current.id);
       });
-
 
       socketRef.current.on("disconnect", (reason) => {
         console.warn("🔌 Socket desconectado:", reason);
@@ -1219,189 +1347,38 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       });
       return;
     }
-    
+
     console.log("🟢 [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
-  
+
     if (!socket || !leadId) {
       console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
       return;
     }
-     
-    
+
     console.log("| [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
 
-if (!socket || !leadId) {
-  console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
-  return;
-}
-
-console.log("🚀 [Front] Vai emitir evento entrarNaSala agora...");
-socket.emit("entrarNaSala", { lead_id: leadId });
-console.log("✅ [Front] Evento entrarNaSala emitido com sucesso!");
-
-
-
-    
-
-  const handleAckMensagem = ({ mensagemIdLocal, ack }) => {
-    if (!mensagemIdLocal) return;
-    setMensagens((prev) =>
-    prev.map((m) =>
-           m.id === mensagemIdLocal
-           ? { ...m, ack: normalizeAck(m.ack, ack) }
-           : m
-           )
-    );
-  };
-  
-    // 🔧 helper: ACK monotônico e upsert por id
-const normalizeAck = (prevAck = 0, nextAck = 0) => {
-  const p = Number(prevAck ?? 0);
-  const n = Number(nextAck ?? 0);
-  if (n === -1) return -1;            // erro tem prioridade
-  return Math.max(p, n);               // 1→2→3→4 nunca regride
-};
-
-// Upsert mantendo ACK monotônico e campos já conhecidos
-function mergeMensagens(prev, incomingListOrOne) {
-  const list = Array.isArray(incomingListOrOne)
-    ? incomingListOrOne
-    : [incomingListOrOne].filter(Boolean);
-
-  if (!list.length) return prev;
-
-  const byId = new Map(prev.map(m => [m.id, m]));
-  for (const inc of list) {
-    const cur = byId.get(inc.id);
-    if (!cur) {
-      // mensagem nova: entra como veio
-      byId.set(inc.id, inc);
-      continue;
+    if (!socket || !leadId) {
+      console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
+      return;
     }
-    // já existe: preserva e promove ACK; mescla campos novos
-    const ack = normalizeAck(cur.ack, inc.ack);
-    byId.set(inc.id, { ...cur, ...inc, ack });
-  }
-  return Array.from(byId.values());
-}
 
-// ---- mensagens recebidas (entrada) ----
-const handleMensagemRecebida = useCallback((payload) => {
-  console.log("📩 [Front] Evento mensagemRecebida:", payload);
+    console.log("🚀 [Front] Vai emitir evento entrarNaSala agora...");
+    socket.emit("entrarNaSala", { lead_id: leadId });
+    console.log("✅ [Front] Evento entrarNaSala emitido com sucesso!");
 
-  const pack = payload?.data ?? payload;
-
-  const lead_id =
-    pack?.lead_id ??
-    pack?.leadId ??
-    pack?.lead ??
-    pack?.lead_id_ref ??
-    pack?.lead_ref ??
-    pack?.lead_id_backend ??
-    pack?.lead_id_socket ??
-    pack?.mensagem?.lead_id ??
-    pack?.data?.lead_id;
-
-  const mIn = pack?.mensagem ?? pack;
-
-  if (lead_id && lead_id !== leadId) {
-    console.log("⏭️ Ignorada (lead diferente)", { lead_id, leadId });
-    return;
-  }
-
-  const msg = {
-    id: mIn?.id ?? null,
-    mensagem_id_externo: mIn?.mensagem_id_externo ?? mIn?.id_externo ?? null,
-    lead_id: mIn?.lead_id ?? leadId ?? null,
-    canal: mIn?.canal ?? "WhatsApp Cockpit",
-    tipo: mIn?.tipo ?? "texto",
-    lida: Boolean(mIn?.lida ?? false),
-    remetente: mIn?.remetente ?? null,
-    remetente_id: mIn?.remetente_id ?? null,
-    vendedor_id: mIn?.vendedor_id ?? null,
-    telefone_cliente: mIn?.telefone_cliente ?? mIn?.telefone ?? null,
-    mensagem: mIn?.mensagem ?? mIn?.body ?? mIn?.texto ?? "",
-    criado_em: mIn?.criado_em ?? new Date().toISOString(),
-  };
-
-  if (!msg.id && !msg.mensagem_id_externo) {
-    console.warn("⚠️ Mensagem recebida inválida (sem id):", msg);
-    return;
-  }
-
-  setMensagens((prev) => {
-    const exists = prev.some(
-      (m) =>
-        (msg.id && m.id === msg.id) ||
-        (msg.mensagem_id_externo && m.mensagem_id_externo === msg.mensagem_id_externo)
-    );
-    if (exists) return prev;
-
-    const next = [...prev, msg];
-    next.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
-    return next;
-  });
-
-  requestAnimationFrame(() => {
-    const fim = document.getElementById("fim-conversa");
-    if (fim) fim.scrollIntoView({ behavior: "smooth", block: "end" });
-  });
-}, [leadId]);
-
-
-
-// ✅ atualiza ACK (✓, ✓✓, ✓✓ azul) sem nunca regredir
-const handleStatusEnvio = (evt = {}) => {
-  const { mensagemIdLocal, mensagemId, ack } = evt;
-
-  setMensagens((prev) =>
-    prev.map((m) => {
-      // Casa por id local
-      if (mensagemIdLocal && m.id === mensagemIdLocal) {
-        return { ...m, ack: normalizeAck(m.ack, ack) };
-      }
-      // Casa por id externo (WhatsApp)
-      if (mensagemId && m.mensagem_id_externo === mensagemId) {
-        return { ...m, ack: normalizeAck(m.ack, ack) };
-      }
-      return m;
-    })
-  );
-};
-
-
-  
-    // ---- áudio reenviado (marcar badge verde no card) ----
-    const handleAudioReenviado = ({ mensagemId }) => {
-      if (!mensagemId) return;
-      // 1) estado auxiliar (badge)
-      setEnviadosIphone((prev) => ({ ...prev, [mensagemId]: true }));
-      // 2) reflete no array da conversa
-      setMensagens((prev) =>
-        prev.map((m) =>
-          m.id === mensagemId
-            ? { ...m, audio_reenviado: true, audio_reenviado_em: new Date().toISOString() }
-            : m
-        )
-      );
-    };
-  
-     
-   
-  
-    // limpa duplicatas e registra handlers
+    // Limpeza de listeners
     socket.off("mensagemRecebida");
     socket.on("mensagemRecebida", handleMensagemRecebida);
-  
+
     socket.off("audioReenviado");
     socket.on("audioReenviado", handleAudioReenviado);
-  
+
     socket.off("statusEnvio");
     socket.on("statusEnvio", handleStatusEnvio);
 
     socket.off("ackMensagem");
     socket.on("ackMensagem", handleAckMensagem);
-  
+
     return () => {
       socket.off("mensagemRecebida", handleMensagemRecebida);
       socket.off("audioReenviado", handleAudioReenviado);
@@ -1411,8 +1388,11 @@ const handleStatusEnvio = (evt = {}) => {
       socket.emit("sairDaSala", { sala: `lead-${leadId}` });
     };
   }, [leadId]);
+
+}
+
+
   
-  }
   
 
 
