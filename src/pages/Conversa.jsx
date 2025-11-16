@@ -15,7 +15,6 @@ import BackButton from "../components/ui/BackButton";
 import { useNavigate } from "react-router-dom";
 import { useCallback } from "react";
 import { useMensagens } from "../hooks/useMensagens";
-useMensagens(leadId, setMensagens, setEnviadosIphone);
 
 
 
@@ -819,8 +818,7 @@ const [enviado, setEnviado] = useState(false);
 const [enviadosIphone, setEnviadosIphone] = useState({});  
 const navigate = useNavigate();
 
-
-
+useMensagens(leadId, setMensagens, setEnviadosIphone);
 
 
 const fetchMensagens = async () => {
