@@ -13,6 +13,10 @@ import AudioRecorder from "../components/AudioRecorder"; // ajuste o path confor
 import BotaoReenvioAudioLottie from "../components/BotaoReenvioAudioLottie";
 import BackButton from "../components/ui/BackButton";
 import { useNavigate } from "react-router-dom";
+import { useCallback } from "react";
+import { useMensagens } from "../hooks/useMensagens";
+useMensagens(leadId, setMensagens, setEnviadosIphone);
+
 
 
 
@@ -812,8 +816,7 @@ const [frasesProntas, setFrasesProntas] = useState([]);
 const [canalSelecionado, setCanalSelecionado] = useState("WhatsApp Cockpit");
 const [audioParaEnviar, setAudioParaEnviar] = useState(null);
 const [enviado, setEnviado] = useState(false);
-const [enviadosIphone, setEnviadosIphone] = useState({});
-useMensagens(leadId, setMensagens, setEnviadosIphone);  
+const [enviadosIphone, setEnviadosIphone] = useState({});  
 const navigate = useNavigate();
 
 
@@ -1205,6 +1208,20 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
   // 2. Toda vez que mudar o leadId, muda a sala e listeners
   useEffect(() => {
     const socket = socketRef.current;
+
+    if (socket && !socket.connected) {
+      console.warn("⏳ [Front] Aguardando conexão do socket...");
+      socket.once("connect", () => {
+        console.log("✅ [Front] Socket conectado. Registrando listeners agora...");
+        socket.emit("entrarNaSala", { lead_id: leadId });
+        socket.on("mensagemRecebida", handleMensagemRecebida);
+        socket.on("audioReenviado", handleAudioReenviado);
+        socket.on("statusEnvio", handleStatusEnvio);
+        socket.on("ackMensagem", handleAckMensagem);
+      });
+      return;
+    }
+    
     console.log("🟢 [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
   
     if (!socket || !leadId) {
@@ -1271,13 +1288,11 @@ function mergeMensagens(prev, incomingListOrOne) {
 }
 
 // ---- mensagens recebidas (entrada) ----
-const handleMensagemRecebida = (payload) => {
+const handleMensagemRecebida = useCallback((payload) => {
   console.log("📩 [Front] Evento mensagemRecebida:", payload);
 
-  // Aceita tanto { success:true, data:{...} } quanto payload cru (retrocompat)
   const pack = payload?.data ?? payload;
 
-  // Extrai lead da casca ou do próprio objeto de mensagem
   const lead_id =
     pack?.lead_id ??
     pack?.leadId ??
@@ -1289,16 +1304,13 @@ const handleMensagemRecebida = (payload) => {
     pack?.mensagem?.lead_id ??
     pack?.data?.lead_id;
 
-  // Mensagem pode vir em pack.mensagem ou ser o próprio pack
   const mIn = pack?.mensagem ?? pack;
 
-  // Garante que pertence ao lead atual
   if (lead_id && lead_id !== leadId) {
     console.log("⏭️ Ignorada (lead diferente)", { lead_id, leadId });
     return;
   }
 
-  // Normalização de campos
   const msg = {
     id: mIn?.id ?? null,
     mensagem_id_externo: mIn?.mensagem_id_externo ?? mIn?.id_externo ?? null,
@@ -1320,24 +1332,23 @@ const handleMensagemRecebida = (payload) => {
   }
 
   setMensagens((prev) => {
-    // dedup por id OU por id externo
     const exists = prev.some(
-      (m) => (msg.id && m.id === msg.id) || (msg.mensagem_id_externo && m.mensagem_id_externo === msg.mensagem_id_externo)
+      (m) =>
+        (msg.id && m.id === msg.id) ||
+        (msg.mensagem_id_externo && m.mensagem_id_externo === msg.mensagem_id_externo)
     );
     if (exists) return prev;
 
     const next = [...prev, msg];
-    // ordena por timestamp
     next.sort((a, b) => new Date(a.criado_em) - new Date(b.criado_em));
     return next;
   });
 
-  // autoscroll suave para o final (adicione <div id="fim-conversa" /> no fim da lista)
   requestAnimationFrame(() => {
     const fim = document.getElementById("fim-conversa");
     if (fim) fim.scrollIntoView({ behavior: "smooth", block: "end" });
   });
-};
+}, [leadId]);
 
 
 
