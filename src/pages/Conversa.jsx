@@ -1298,6 +1298,18 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
     );
   };
 
+  // ✅ NOVA FUNÇÃO: handleAckMensagem (idêntica ao seu código original, apenas movida pra cá)
+  const handleAckMensagem = ({ mensagemIdLocal, ack }) => {
+    if (!mensagemIdLocal) return;
+    setMensagens((prev) =>
+      prev.map((m) =>
+        m.id === mensagemIdLocal
+          ? { ...m, ack: normalizeAck(m.ack, ack) }
+          : m
+      )
+    );
+  };
+
   // 1. Só conecta o socket UMA vez
   useEffect(() => {
     if (!socketRef.current) {
@@ -1313,7 +1325,6 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
         console.log("➡️ Front recebeu evento:", event, args);
       });
 
-      // ←––––– AQUI: confirma quando a conexão for estabelecida
       socketRef.current.on("connect", () => {
         console.log("✅ Socket conectado:", socketRef.current.id);
       });
@@ -1322,7 +1333,7 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
         console.warn("🔌 Socket desconectado:", reason);
       });
     }
-    // Cleanup global socket ONLY on component unmount
+
     return () => {
       if (socketRef.current) {
         socketRef.current.disconnect();
@@ -1355,18 +1366,10 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       return;
     }
 
-    console.log("| [Front] useEffect montou. leadId =", leadId, "socket existe?", !!socket);
-
-    if (!socket || !leadId) {
-      console.warn("⚠️ [Front] Abortado: socket ou leadId inválido", { socketOk: !!socket, leadId });
-      return;
-    }
-
     console.log("🚀 [Front] Vai emitir evento entrarNaSala agora...");
     socket.emit("entrarNaSala", { lead_id: leadId });
     console.log("✅ [Front] Evento entrarNaSala emitido com sucesso!");
 
-    // Limpeza de listeners
     socket.off("mensagemRecebida");
     socket.on("mensagemRecebida", handleMensagemRecebida);
 
@@ -1384,11 +1387,9 @@ function useMensagens(leadId, setMensagens, setEnviadosIphone) {
       socket.off("audioReenviado", handleAudioReenviado);
       socket.off("statusEnvio", handleStatusEnvio);
       socket.off("ackMensagem", handleAckMensagem);
-      // se você estiver saindo da conversa, opcional:
       socket.emit("sairDaSala", { sala: `lead-${leadId}` });
     };
   }, [leadId]);
-
 }
 
 
